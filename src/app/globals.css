@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+/* next-themes toggles a `.dark` class on <html>; make Tailwind's dark variant follow it. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ */
+/* Design tokens                                                       */
+/* ------------------------------------------------------------------ */
+:root {
+  --radius: 0.85rem;
+
+  --background: oklch(0.99 0.002 270);
+  --foreground: oklch(0.2 0.01 270);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.01 270);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.01 270);
+
+  --muted: oklch(0.97 0.003 270);
+  --muted-foreground: oklch(0.52 0.012 270);
+
+  --border: oklch(0.92 0.004 270);
+  --input: oklch(0.92 0.004 270);
+  --ring: oklch(0.55 0.21 277);
+
+  --primary: oklch(0.55 0.21 277);
+  --primary-foreground: oklch(0.99 0.002 270);
+
+  --accent: oklch(0.96 0.015 277);
+  --accent-foreground: oklch(0.4 0.16 277);
+
+  /* Semantic status colors (mapped from the official sheet). */
+  --success: oklch(0.62 0.16 152); /* rescheduled = green */
+  --success-foreground: oklch(0.99 0.002 270);
+  --destructive: oklch(0.58 0.22 27); /* cancelled = red */
+  --destructive-foreground: oklch(0.99 0.002 270);
+  --warning: oklch(0.74 0.16 75);
+  --warning-foreground: oklch(0.24 0.04 75);
+}
+
+.dark {
+  --background: oklch(0.16 0.006 270);
+  --foreground: oklch(0.96 0.003 270);
+
+  --card: oklch(0.195 0.007 270);
+  --card-foreground: oklch(0.96 0.003 270);
+
+  --popover: oklch(0.195 0.007 270);
+  --popover-foreground: oklch(0.96 0.003 270);
+
+  --muted: oklch(0.245 0.008 270);
+  --muted-foreground: oklch(0.69 0.012 270);
+
+  --border: oklch(0.275 0.008 270);
+  --input: oklch(0.3 0.009 270);
+  --ring: oklch(0.66 0.18 277);
+
+  --primary: oklch(0.67 0.17 277);
+  --primary-foreground: oklch(0.16 0.006 270);
+
+  --accent: oklch(0.28 0.03 277);
+  --accent-foreground: oklch(0.88 0.05 277);
+
+  --success: oklch(0.68 0.15 152);
+  --success-foreground: oklch(0.16 0.006 270);
+  --destructive: oklch(0.64 0.2 27);
+  --destructive-foreground: oklch(0.99 0.002 270);
+  --warning: oklch(0.78 0.15 75);
+  --warning-foreground: oklch(0.18 0.03 75);
+}
+
+/* ------------------------------------------------------------------ */
+/* Map tokens to Tailwind utilities (bg-background, text-muted-...)    */
+/* ------------------------------------------------------------------ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+/* ------------------------------------------------------------------ */
+/* Base layer                                                          */
+/* ------------------------------------------------------------------ */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tabular numerals for clock-like times. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Safe-area helpers for notches / home indicators on installed PWAs. */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Hide scrollbars where we want a clean, app-like feel (e.g. horizontal rails). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes slide-up-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-slide-up {
+  animation: slide-up-fade 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

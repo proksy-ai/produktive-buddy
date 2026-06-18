@@ -1,0 +1,443 @@
+// Kairo data model - scalable across colleges, programs, batches, and 6 terms.
+// First college: IIM Kozhikode (PGP / FIN / LSM programs).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum ProgramKind {
+  PGP
+  FIN
+  LSM
+  OTHER
+}
+
+enum SheetKind {
+  PER_PROGRAM // first-year: one sheet per program
+  COMBINED // second-year: one sheet shared across programs (electives)
+}
+
+enum SessionStatus {
+  SCHEDULED
+  CANCELLED // highlighted Red in the official sheet
+  RESCHEDULED // highlighted Green in the official sheet
+  ADDED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  CANCELLED
+  NA
+}
+
+enum NoticeType {
+  PLACEMENT
+  QUIZ
+  EXAM
+  GENERAL
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum ChangeType {
+  CANCELLED
+  RESCHEDULED
+  ADDED
+  ROOM_CHANGED
+  TIME_CHANGED
+  REMOVED
+}
+
+// ---------------------------------------------------------------------------
+// Institution hierarchy
+// ---------------------------------------------------------------------------
+
+model College {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  timezone  String    @default("Asia/Kolkata")
+  programs  Program[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Program {
+  id        String      @id @default(cuid())
+  college   College     @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  kind      ProgramKind
+  code      String // e.g. "PGP", "FIN", "LSM"
+  name      String
+  batches   Batch[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([collegeId, code])
+}
+
+/// A cohort of a program, e.g. PGP #29 (2025-2027).
+model Batch {
+  id        String   @id @default(cuid())
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  programId String
+  number    Int // 29, 30, 06, 07 ...
+  label     String // "PGP29", "FIN06"
+  startYear Int
+  endYear   Int
+  isActive  Boolean  @default(true)
+
+  emailPrefixRules EmailPrefixRule[]
+  terms            Term[]
+  users            User[]
+  notices          Notice[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([programId, number])
+}
+
+/// Maps an institute-email local-part prefix to a batch, e.g. "mba25" -> PGP#29.
+model EmailPrefixRule {
+  id      String @id @default(cuid())
+  prefix  String @unique // lowercased local-part prefix, e.g. "mba25"
+  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId String
+
+  @@index([batchId])
+}
+
+/// One of the (up to) 6 terms for a batch.
+model Term {
+  id        String    @id @default(cuid())
+  batch     Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId   String
+  number    Int // 1..6
+  name      String // "Term IV"
+  startDate DateTime?
+  endDate   DateTime?
+
+  sheetLinks      TermSheetSource[]
+  courses         Course[]
+  cohortSections  CohortSection[]
+  sessions        Session[]
+  enrollments     Enrollment[]
+  userTermProfiles UserTermProfile[]
+  notices         Notice[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([batchId, number])
+}
+
+// ---------------------------------------------------------------------------
+// Source sheets (the scalability backbone) + sync bookkeeping
+// ---------------------------------------------------------------------------
+
+model SheetSource {
+  id              String    @id @default(cuid())
+  spreadsheetId   String
+  scheduleGid     String    @default("0")
+  courseDetailsGid String?
+  kind            SheetKind @default(PER_PROGRAM)
+  label           String
+  lastSyncedAt    DateTime?
+  lastContentHash String?
+
+  terms     TermSheetSource[]
+  snapshots SyncSnapshot[]
+  changes   ChangeEvent[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([spreadsheetId, scheduleGid])
+}
+
+/// Links a term to its source sheet(s). A combined sheet maps to many terms.
+model TermSheetSource {
+  id            String      @id @default(cuid())
+  term          Term        @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId        String
+  sheetSource   SheetSource @relation(fields: [sheetSourceId], references: [id], onDelete: Cascade)
+  sheetSourceId String
+  /// For combined sheets, which program's columns this term should read.
+  programFilter String?
+
+  @@unique([termId, sheetSourceId])
+  @@index([sheetSourceId])
+}
+
+model SyncSnapshot {
+  id            String      @id @default(cuid())
+  sheetSource   SheetSource @relation(fields: [sheetSourceId], references: [id], onDelete: Cascade)
+  sheetSourceId String
+  contentHash   String
+  fetchedAt     DateTime    @default(now())
+  raw           Json?
+
+  @@index([sheetSourceId, fetchedAt])
+}
+
+model ChangeEvent {
+  id            String      @id @default(cuid())
+  sheetSource   SheetSource @relation(fields: [sheetSourceId], references: [id], onDelete: Cascade)
+  sheetSourceId String
+  session       Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  sessionId     String?
+  type          ChangeType
+  summary       String
+  detectedAt    DateTime    @default(now())
+  notifiedAt    DateTime?
+
+  @@index([sheetSourceId, detectedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Academic content
+// ---------------------------------------------------------------------------
+
+model Course {
+  id          String  @id @default(cuid())
+  term        Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId      String
+  abbr        String // "GT", "ST (FIN-Core)"
+  name        String
+  credits     Float?
+  faculty     String?
+  programCode String? // distinguishes columns in combined (year-2) sheets
+
+  sections    CourseSection[]
+  sessions    Session[]
+  enrollments Enrollment[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([termId, abbr])
+}
+
+/// Lecture section of a course (year-2 electives: A/B/C; year-1 often a single section).
+model CourseSection {
+  id       String  @id @default(cuid())
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+  code     String // "A", "B", "C"
+
+  sessions    Session[]
+  enrollments Enrollment[]
+
+  @@unique([courseId, code])
+}
+
+/// First-year student cohort section (A..H) within a term; the schedule column.
+model CohortSection {
+  id     String @id @default(cuid())
+  term   Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId String
+  code   String // "A".."H"
+  room   String? // default classroom, e.g. "CR A1"
+
+  sessions     Session[]
+  userProfiles UserTermProfile[]
+
+  @@unique([termId, code])
+}
+
+/// A single class occurrence (one cell of the schedule grid).
+model Session {
+  id        String        @id @default(cuid())
+  term      Term          @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId    String
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId  String
+
+  courseSection   CourseSection? @relation(fields: [courseSectionId], references: [id], onDelete: SetNull)
+  courseSectionId String?
+  cohortSection   CohortSection? @relation(fields: [cohortSectionId], references: [id], onDelete: SetNull)
+  cohortSectionId String?
+
+  date      DateTime // class date (00:00 local)
+  startTime String // "09:15" (24h, campus-local)
+  endTime   String // "10:30"
+  room      String?
+  status    SessionStatus @default(SCHEDULED)
+  note      String?
+  sourceColumn String? // raw sheet column header, e.g. "PGP-29 D1"
+  rawCellText  String? // raw cell value, e.g. "GT-A"
+
+  attendance Attendance[]
+  changes    ChangeEvent[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([termId, date])
+  @@index([courseId, date])
+}
+
+// ---------------------------------------------------------------------------
+// Users & personalization
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  rollNumber    String? // used to match exam/quiz seating
+  role          UserRole  @default(STUDENT)
+
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  batchId String?
+
+  termProfiles      UserTermProfile[]
+  enrollments       Enrollment[]
+  attendance        Attendance[]
+  pushSubscriptions PushSubscription[]
+  friendsInitiated  Friendship[]       @relation("FriendshipFrom")
+  friendsReceived   Friendship[]       @relation("FriendshipTo")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([batchId])
+  @@index([rollNumber])
+}
+
+/// Per-term personalization: which cohort section a student is in (year 1).
+model UserTermProfile {
+  id              String         @id @default(cuid())
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  term            Term           @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId          String
+  cohortSection   CohortSection? @relation(fields: [cohortSectionId], references: [id], onDelete: SetNull)
+  cohortSectionId String?
+
+  @@unique([userId, termId])
+  @@index([termId])
+}
+
+/// A course a student takes in a term (year-2 electives; year-1 may be derived).
+model Enrollment {
+  id              String         @id @default(cuid())
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  term            Term           @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId          String
+  course          Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId        String
+  courseSection   CourseSection? @relation(fields: [courseSectionId], references: [id], onDelete: SetNull)
+  courseSectionId String?
+  createdAt       DateTime       @default(now())
+
+  @@unique([userId, courseId])
+  @@index([termId])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  session   Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  status    AttendanceStatus
+  markedAt  DateTime         @default(now())
+
+  @@unique([userId, sessionId])
+  @@index([userId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Friendship {
+  id        String           @id @default(cuid())
+  from      User             @relation("FriendshipFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  fromId    String
+  to        User             @relation("FriendshipTo", fields: [toId], references: [id], onDelete: Cascade)
+  toId      String
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+
+  @@unique([fromId, toId])
+  @@index([toId])
+}
+
+// ---------------------------------------------------------------------------
+// Notices (placements / quizzes / exams) + seating
+// ---------------------------------------------------------------------------
+
+model Notice {
+  id          String     @id @default(cuid())
+  batch       Batch?     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId     String?
+  term        Term?      @relation(fields: [termId], references: [id], onDelete: SetNull)
+  termId      String?
+  type        NoticeType @default(GENERAL)
+  title       String
+  body        String?
+  imageUrl    String?
+  source      String? // e.g. originating email id
+  publishedAt DateTime   @default(now())
+
+  seating   SeatingAssignment[]
+  createdAt DateTime            @default(now())
+
+  @@index([batchId, publishedAt])
+}
+
+/// One person's seat parsed from an exam/quiz seating image or table.
+model SeatingAssignment {
+  id         String @id @default(cuid())
+  notice     Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  noticeId   String
+  rollNumber String
+  section    String?
+  room       String?
+  seat       String?
+
+  @@index([noticeId])
+  @@index([rollNumber])
+}
+
+// ---------------------------------------------------------------------------
+// Auth: email OTP
+// ---------------------------------------------------------------------------
+
+model OtpToken {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+}
