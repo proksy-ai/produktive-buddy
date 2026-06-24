@@ -26,13 +26,23 @@ export function BottomNav({ className }: { className?: string }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium transition-colors",
-                  active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground",
+                  "flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium transition-colors",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className={cn("size-5", active && "fill-primary/10")} />
+                <span
+                  className={cn(
+                    "flex h-8 w-12 items-center justify-center rounded-full transition-colors",
+                    active && "bg-primary/12",
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "size-5 transition-transform",
+                      active && "scale-110 fill-primary/15",
+                    )}
+                  />
+                </span>
                 {label}
               </Link>
             </li>

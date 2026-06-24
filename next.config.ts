@@ -7,6 +7,14 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: [
+    "pdf-parse",
+    "pdfjs-dist",
+    "pg",
+    "@prisma/adapter-pg",
+    "@prisma/client",
+    "web-push",
+  ],
   async headers() {
     return [
       {

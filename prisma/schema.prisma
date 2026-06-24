@@ -48,7 +48,9 @@ enum NoticeType {
 
 enum UserRole {
   STUDENT
+  FACULTY
   ADMIN
+  ACADEMIC_ADMIN
 }
 
 enum FriendshipStatus {
@@ -66,18 +68,55 @@ enum ChangeType {
   REMOVED
 }
 
+enum GroupKind {
+  FRIENDS
+  CLUB
+  COMMITTEE
+  SPORT
+  CUSTOM
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum GroupMembershipStatus {
+  INVITED
+  ACTIVE
+  LEFT
+  REMOVED
+}
+
+enum AcademicCalendarEventType {
+  HOLIDAY
+  VACATION
+  EXAM
+  DEADLINE
+  GENERAL
+}
+
+enum OfficialAttendanceStatus {
+  PRESENT
+  ABSENT
+  CANCELLED
+  NA
+}
+
 // ---------------------------------------------------------------------------
 // Institution hierarchy
 // ---------------------------------------------------------------------------
 
 model College {
-  id        String    @id @default(cuid())
-  name      String
-  slug      String    @unique
-  timezone  String    @default("Asia/Kolkata")
-  programs  Program[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id             String                  @id @default(cuid())
+  name           String
+  slug           String                  @unique
+  timezone       String                  @default("Asia/Kolkata")
+  programs       Program[]
+  calendarEvents AcademicCalendarEvent[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 }
 
 model Program {
@@ -96,21 +135,22 @@ model Program {
 
 /// A cohort of a program, e.g. PGP #29 (2025-2027).
 model Batch {
-  id        String   @id @default(cuid())
-  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
   programId String
   number    Int // 29, 30, 06, 07 ...
   label     String // "PGP29", "FIN06"
   startYear Int
   endYear   Int
-  isActive  Boolean  @default(true)
+  isActive  Boolean @default(true)
 
   emailPrefixRules EmailPrefixRule[]
   terms            Term[]
   users            User[]
   notices          Notice[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  calendarEvents   AcademicCalendarEvent[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
 
   @@unique([programId, number])
 }
@@ -135,15 +175,19 @@ model Term {
   startDate DateTime?
   endDate   DateTime?
 
-  sheetLinks      TermSheetSource[]
-  courses         Course[]
-  cohortSections  CohortSection[]
-  sessions        Session[]
-  enrollments     Enrollment[]
+  sheetLinks       TermSheetSource[]
+  courses          Course[]
+  cohortSections   CohortSection[]
+  sessions         Session[]
+  enrollments      Enrollment[]
   userTermProfiles UserTermProfile[]
-  notices         Notice[]
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  notices          Notice[]
+  activeUsers      User[]
+  notifyRequests   TermNotifyRequest[]
+  colorPreferences UserCoursePreference[]
+  calendarEvents   AcademicCalendarEvent[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
 
   @@unique([batchId, number])
 }
@@ -153,14 +197,14 @@ model Term {
 // ---------------------------------------------------------------------------
 
 model SheetSource {
-  id              String    @id @default(cuid())
-  spreadsheetId   String
-  scheduleGid     String    @default("0")
+  id               String    @id @default(cuid())
+  spreadsheetId    String
+  scheduleGid      String    @default("0")
   courseDetailsGid String?
-  kind            SheetKind @default(PER_PROGRAM)
-  label           String
-  lastSyncedAt    DateTime?
-  lastContentHash String?
+  kind             SheetKind @default(PER_PROGRAM)
+  label            String
+  lastSyncedAt     DateTime?
+  lastContentHash  String?
 
   terms     TermSheetSource[]
   snapshots SyncSnapshot[]
@@ -215,28 +259,30 @@ model ChangeEvent {
 // ---------------------------------------------------------------------------
 
 model Course {
-  id          String  @id @default(cuid())
-  term        Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
-  termId      String
-  abbr        String // "GT", "ST (FIN-Core)"
-  name        String
-  credits     Float?
-  faculty     String?
-  programCode String? // distinguishes columns in combined (year-2) sheets
+  id                       String  @id @default(cuid())
+  term                     Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId                   String
+  abbr                     String // "GT", "ST (FIN-Core)"
+  name                     String
+  credits                  Float?
+  faculty                  String?
+  programCode              String? // distinguishes columns in combined (year-2) sheets
+  expectedSessionsOverride Int?
 
-  sections    CourseSection[]
-  sessions    Session[]
-  enrollments Enrollment[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  sections         CourseSection[]
+  sessions         Session[]
+  enrollments      Enrollment[]
+  colorPreferences UserCoursePreference[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   @@unique([termId, abbr])
 }
 
 /// Lecture section of a course (year-2 electives: A/B/C; year-1 often a single section).
 model CourseSection {
-  id       String  @id @default(cuid())
-  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   courseId String
   code     String // "A", "B", "C"
 
@@ -248,8 +294,8 @@ model CourseSection {
 
 /// First-year student cohort section (A..H) within a term; the schedule column.
 model CohortSection {
-  id     String @id @default(cuid())
-  term   Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+  id     String  @id @default(cuid())
+  term   Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
   termId String
   code   String // "A".."H"
   room   String? // default classroom, e.g. "CR A1"
@@ -262,30 +308,32 @@ model CohortSection {
 
 /// A single class occurrence (one cell of the schedule grid).
 model Session {
-  id        String        @id @default(cuid())
-  term      Term          @relation(fields: [termId], references: [id], onDelete: Cascade)
-  termId    String
-  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId  String
+  id       String @id @default(cuid())
+  term     Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
 
   courseSection   CourseSection? @relation(fields: [courseSectionId], references: [id], onDelete: SetNull)
   courseSectionId String?
   cohortSection   CohortSection? @relation(fields: [cohortSectionId], references: [id], onDelete: SetNull)
   cohortSectionId String?
 
-  date      DateTime // class date (00:00 local)
-  startTime String // "09:15" (24h, campus-local)
-  endTime   String // "10:30"
-  room      String?
-  status    SessionStatus @default(SCHEDULED)
-  note      String?
+  date         DateTime // class date (00:00 local)
+  startTime    String // "09:15" (24h, campus-local)
+  endTime      String // "10:30"
+  room         String?
+  status       SessionStatus @default(SCHEDULED)
+  note         String?
   sourceColumn String? // raw sheet column header, e.g. "PGP-29 D1"
   rawCellText  String? // raw cell value, e.g. "GT-A"
 
-  attendance Attendance[]
-  changes    ChangeEvent[]
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  attendance         Attendance[]
+  officialAttendance OfficialAttendance[]
+  notes              SessionNote[]
+  changes            ChangeEvent[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   @@index([termId, date])
   @@index([courseId, date])
@@ -302,21 +350,39 @@ model User {
   name          String?
   rollNumber    String? // used to match exam/quiz seating
   role          UserRole  @default(STUDENT)
+  friendCode    String?   @unique
 
   batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
   batchId String?
 
-  termProfiles      UserTermProfile[]
-  enrollments       Enrollment[]
-  attendance        Attendance[]
-  pushSubscriptions PushSubscription[]
-  friendsInitiated  Friendship[]       @relation("FriendshipFrom")
-  friendsReceived   Friendship[]       @relation("FriendshipTo")
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  /// Which term the student is currently viewing / set up for.
+  activeTerm   Term?   @relation(fields: [activeTermId], references: [id], onDelete: SetNull)
+  activeTermId String?
+
+  onboardingCompletedAt DateTime?
+
+  /// Stable secret for subscribing to the personal calendar feed (ICS).
+  calendarToken String? @unique
+
+  termProfiles              UserTermProfile[]
+  enrollments               Enrollment[]
+  attendance                Attendance[]
+  officialAttendanceRecords OfficialAttendance[]   @relation("OfficialAttendanceStudent")
+  officialAttendanceMarked  OfficialAttendance[]   @relation("OfficialAttendanceMarker")
+  colorPreferences          UserCoursePreference[]
+  sessionNotes              SessionNote[]
+  pushSubscriptions         PushSubscription[]
+  termNotifyRequests        TermNotifyRequest[]
+  friendsInitiated          Friendship[]           @relation("FriendshipFrom")
+  friendsReceived           Friendship[]           @relation("FriendshipTo")
+  ownedGroups               Group[]                @relation("GroupOwner")
+  groupMemberships          GroupMember[]
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
 
   @@index([batchId])
   @@index([rollNumber])
+  @@index([activeTermId])
 }
 
 /// Per-term personalization: which cohort section a student is in (year 1).
@@ -350,6 +416,23 @@ model Enrollment {
   @@index([termId])
 }
 
+/// Stable, user-specific color assignment for a course in one term.
+model UserCoursePreference {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  term      Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId    String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId  String
+  colorKey  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, termId, courseId])
+  @@index([termId])
+}
+
 model Attendance {
   id        String           @id @default(cuid())
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -361,6 +444,38 @@ model Attendance {
 
   @@unique([userId, sessionId])
   @@index([userId])
+}
+
+/// Student-owned notes for one lecture occurrence.
+model SessionNote {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, sessionId])
+  @@index([sessionId])
+}
+
+/// Future official attendance marked by faculty/admin, kept separate from self-tracking.
+model OfficialAttendance {
+  id         String                   @id @default(cuid())
+  student    User                     @relation("OfficialAttendanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  studentId  String
+  session    Session                  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId  String
+  status     OfficialAttendanceStatus
+  markedBy   User?                    @relation("OfficialAttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
+  markedById String?
+  markedAt   DateTime                 @default(now())
+
+  @@unique([studentId, sessionId])
+  @@index([sessionId])
+  @@index([markedById])
 }
 
 model PushSubscription {
@@ -377,16 +492,64 @@ model PushSubscription {
 }
 
 model Friendship {
-  id        String           @id @default(cuid())
-  from      User             @relation("FriendshipFrom", fields: [fromId], references: [id], onDelete: Cascade)
-  fromId    String
-  to        User             @relation("FriendshipTo", fields: [toId], references: [id], onDelete: Cascade)
-  toId      String
-  status    FriendshipStatus @default(PENDING)
-  createdAt DateTime         @default(now())
+  id         String           @id @default(cuid())
+  from       User             @relation("FriendshipFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  fromId     String
+  to         User             @relation("FriendshipTo", fields: [toId], references: [id], onDelete: Cascade)
+  toId       String
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  acceptedAt DateTime?
 
   @@unique([fromId, toId])
   @@index([toId])
+}
+
+model Group {
+  id        String        @id @default(cuid())
+  name      String
+  kind      GroupKind     @default(CUSTOM)
+  owner     User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   String
+  members   GroupMember[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([ownerId])
+}
+
+model GroupMember {
+  id        String                @id @default(cuid())
+  group     Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId   String
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      GroupRole             @default(MEMBER)
+  status    GroupMembershipStatus @default(ACTIVE)
+  createdAt DateTime              @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model AcademicCalendarEvent {
+  id        String                    @id @default(cuid())
+  college   College                   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  batch     Batch?                    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId   String?
+  term      Term?                     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId    String?
+  type      AcademicCalendarEventType @default(GENERAL)
+  title     String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime                  @default(now())
+  updatedAt DateTime                  @updatedAt
+
+  @@index([collegeId, startDate])
+  @@index([batchId, startDate])
+  @@index([termId, startDate])
 }
 
 // ---------------------------------------------------------------------------
@@ -414,8 +577,8 @@ model Notice {
 
 /// One person's seat parsed from an exam/quiz seating image or table.
 model SeatingAssignment {
-  id         String @id @default(cuid())
-  notice     Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  notice     Notice  @relation(fields: [noticeId], references: [id], onDelete: Cascade)
   noticeId   String
   rollNumber String
   section    String?
@@ -440,4 +603,18 @@ model OtpToken {
   createdAt  DateTime  @default(now())
 
   @@index([email])
+}
+
+/// Student wants a ping when a locked term's schedule goes live.
+model TermNotifyRequest {
+  id         String    @id @default(cuid())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  term       Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId     String
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, termId])
+  @@index([termId])
 }

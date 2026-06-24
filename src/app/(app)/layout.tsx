@@ -1,10 +1,24 @@
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 
 import { AppHeader } from "@/components/nav/app-header";
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { SideNav } from "@/components/nav/side-nav";
+import { getSession } from "@/lib/auth/session";
+import { db } from "@/lib/db";
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const session = await getSession();
+  if (session) {
+    const user = await db.user.findUnique({
+      where: { id: session.id },
+      select: { onboardingCompletedAt: true, name: true },
+    });
+    if (user && !(user.onboardingCompletedAt && user.name?.trim())) {
+      redirect("/onboarding");
+    }
+  }
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-6xl">
       <SideNav />
