@@ -4,10 +4,14 @@ import { PDFParse } from "pdf-parse";
 import { matchEdtexToCatalog, parseEdtexText } from "@/lib/edtex/parse";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { assertSameOrigin } from "@/server/security/csrf";
+import { assertPdfFile, UploadValidationError } from "@/server/security/upload";
 
 export async function POST(request: Request) {
   try {
-    await requireSession();
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
+    const session = await requireSession();
     const form = await request.formData();
     const file = form.get("file");
     const termId = form.get("termId");
@@ -15,8 +19,17 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "PDF file required." }, { status: 400 });
     }
+    assertPdfFile(file);
     if (typeof termId !== "string" || !termId) {
       return NextResponse.json({ error: "termId required." }, { status: 400 });
+    }
+
+    const term = await db.term.findFirst({
+      where: { id: termId, batchId: session.batchId ?? undefined },
+      select: { id: true },
+    });
+    if (!term) {
+      return NextResponse.json({ error: "Invalid term." }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -46,6 +59,9 @@ export async function POST(request: Request) {
       unmatched: unmatched.map((u) => ({ code: u.code, name: u.name })),
     });
   } catch (err) {
+    if (err instanceof UploadValidationError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("[onboarding/parse-pdf]", err);
     return NextResponse.json(
       { error: "Could not read PDF. Try a different file." },

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarPlus, Check, Copy, Download, Loader2 } from "lucide-react";
+import { CalendarPlus, Check, Copy, Download, Loader2, RefreshCw, ShieldOff } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,27 @@ export function AddToCalendar() {
     if (l) window.open(l.httpUrl, "_blank");
   }
 
+  async function rotate() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/calendar/link", { method: "POST" });
+      if (!res.ok) throw new Error();
+      setLinks(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function revoke() {
+    setLoading(true);
+    try {
+      await fetch("/api/calendar/link", { method: "DELETE" });
+      setLinks(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-start gap-3">
@@ -77,7 +98,19 @@ export function AddToCalendar() {
           <Download className="size-4" />
           Download .ics
         </Button>
+        <Button size="sm" variant="ghost" onClick={() => void rotate()} disabled={loading}>
+          <RefreshCw className="size-4" />
+          Rotate
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => void revoke()} disabled={loading}>
+          <ShieldOff className="size-4" />
+          Revoke
+        </Button>
       </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Calendar links are private bearer links. Rotate or revoke if you ever share
+        one by mistake.
+      </p>
     </div>
   );
 }

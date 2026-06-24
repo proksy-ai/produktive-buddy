@@ -2,7 +2,7 @@
 
 import { Loader2, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,12 +12,10 @@ type Step = "email" | "code";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [next, setNext] = useState("/today");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setNext(params.get("next") ?? "/today");
-  }, []);
+  const [next] = useState(() => {
+    if (typeof window === "undefined") return "/today";
+    return new URLSearchParams(window.location.search).get("next") ?? "/today";
+  });
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");

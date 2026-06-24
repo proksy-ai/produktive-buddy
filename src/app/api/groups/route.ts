@@ -2,8 +2,10 @@ import { GroupKind } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { createGroup } from "@/features/social/service";
 import { requireSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { auditLog } from "@/server/audit/service";
+import { assertSameOrigin } from "@/server/security/csrf";
 
 const bodySchema = z.object({
   name: z.string().min(2).max(80),
@@ -12,25 +14,18 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const body = bodySchema.parse(await request.json());
-
-    const group = await db.group.create({
-      data: {
-        name: body.name.trim(),
-        kind: body.kind,
-        ownerId: session.id,
-        members: {
-          create: {
-            userId: session.id,
-            role: "OWNER",
-            status: "ACTIVE",
-          },
-        },
-      },
-      select: { id: true, name: true, kind: true },
+    const group = await createGroup(session.id, body);
+    await auditLog({
+      actorId: session.id,
+      action: "group.create",
+      resource: group.id,
+      metadata: { kind: group.kind },
+      request,
     });
-
     return NextResponse.json({ ok: true, group });
   } catch (err) {
     if (err instanceof z.ZodError) {

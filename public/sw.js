@@ -42,22 +42,17 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigations: network-first, fall back to cached page, then offline shell.
+  // Navigations may contain personalized schedule data; never cache them.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          return cached || caches.match(OFFLINE_URL);
-        }),
+        .catch(() => caches.match(OFFLINE_URL)),
     );
     return;
   }
+
+  // API responses are user-specific or security-sensitive.
+  if (url.pathname.startsWith("/api/")) return;
 
   // Hashed static assets: cache-first (immutable).
   if (url.pathname.startsWith("/_next/static/")) {

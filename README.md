@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kairo
 
-## Getting Started
+Kairo is a campus schedule and attendance PWA for IIM Kozhikode students. It ingests official Google Sheets, personalizes timetables by batch, term, section, and courses, and supports attendance planning, lecture notes, friends/groups, push notifications, and calendar export.
 
-First, run the development server:
+## Quickstart
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env
+npm run db:push
+npm run db:seed
+npm run sync:sheets
+npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://127.0.0.1:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Core Commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run test:integration
+npm run test:e2e
+npm run build
+npm run check
+npm run security:audit
+```
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+- Next.js App Router for pages and API routes.
+- Prisma 7 with PostgreSQL and `@prisma/adapter-pg`.
+- Feature services under `src/features/**` hold domain logic.
+- `src/server/**` holds auth, security, and audit concerns.
+- `src/components/**` holds reusable UI.
+- Official sheet ingestion lives under `src/lib/sheets`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `docs/setup.md` - local setup and common failures.
+- `docs/architecture.md` - major flows and boundaries.
+- `docs/security.md` - auth, CSRF, uploads, tokens, audit logging.
+- `docs/privacy.md` - student data inventory and governance.
+- `docs/operations.md` - sync, cron, deploy, backup, monitoring.
+- `docs/testing.md` - test pyramid and commands.
+- `docs/agent-guide.md` - instructions for AI agents and new contributors.
 
-## Deploy on Vercel
+## Enterprise Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Kairo is student-first today, but the schema and route guards include foundations for faculty and academic-admin roles. Official attendance is intentionally separated from student self-tracking.

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { addGroupMemberByCode } from "@/features/social/service";
 import { requireSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { auditLog } from "@/server/audit/service";
+import { assertSameOrigin } from "@/server/security/csrf";
 
 const bodySchema = z.object({
   code: z.string().min(6).max(16),
@@ -13,35 +15,19 @@ export async function POST(
   { params }: { params: Promise<{ groupId: string }> },
 ) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const { groupId } = await params;
     const { code } = bodySchema.parse(await request.json());
-
-    const group = await db.group.findFirst({
-      where: {
-        id: groupId,
-        members: { some: { userId: session.id, status: "ACTIVE" } },
-      },
-      select: { id: true },
+    const user = await addGroupMemberByCode(session.id, groupId, code);
+    await auditLog({
+      actorId: session.id,
+      action: "group.member.add",
+      resource: groupId,
+      metadata: { memberId: user.id },
+      request,
     });
-    if (!group) {
-      return NextResponse.json({ error: "Group not found." }, { status: 404 });
-    }
-
-    const user = await db.user.findUnique({
-      where: { friendCode: code.trim().toUpperCase() },
-      select: { id: true, name: true, email: true },
-    });
-    if (!user) {
-      return NextResponse.json({ error: "Friend code not found." }, { status: 404 });
-    }
-
-    await db.groupMember.upsert({
-      where: { groupId_userId: { groupId, userId: user.id } },
-      create: { groupId, userId: user.id, status: "ACTIVE" },
-      update: { status: "ACTIVE" },
-    });
-
     return NextResponse.json({ ok: true, member: user });
   } catch (err) {
     if (err instanceof z.ZodError) {

@@ -104,6 +104,12 @@ enum OfficialAttendanceStatus {
   NA
 }
 
+enum AuditSeverity {
+  INFO
+  WARN
+  ERROR
+}
+
 // ---------------------------------------------------------------------------
 // Institution hierarchy
 // ---------------------------------------------------------------------------
@@ -377,6 +383,7 @@ model User {
   friendsReceived           Friendship[]           @relation("FriendshipTo")
   ownedGroups               Group[]                @relation("GroupOwner")
   groupMemberships          GroupMember[]
+  auditLogs                 AuditLog[]
   createdAt                 DateTime               @default(now())
   updatedAt                 DateTime               @updatedAt
 
@@ -617,4 +624,20 @@ model TermNotifyRequest {
 
   @@unique([userId, termId])
   @@index([termId])
+}
+
+model AuditLog {
+  id        String        @id @default(cuid())
+  actor     User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorId   String?
+  action    String
+  resource  String?
+  metadata  Json?
+  severity  AuditSeverity @default(INFO)
+  ipHash    String?
+  userAgent String?
+  createdAt DateTime      @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
 }

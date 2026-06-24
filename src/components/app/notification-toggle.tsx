@@ -14,28 +14,28 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
 
 type State = "loading" | "unsupported" | "off" | "on" | "denied";
 
+function initialState(): State {
+  if (
+    typeof window === "undefined" ||
+    !("serviceWorker" in navigator) ||
+    !("PushManager" in window)
+  ) {
+    return "unsupported";
+  }
+  return Notification.permission === "denied" ? "denied" : "loading";
+}
+
 export function NotificationToggle() {
-  const [state, setState] = useState<State>("loading");
+  const [state, setState] = useState<State>(initialState);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    ) {
-      setState("unsupported");
-      return;
-    }
-    if (Notification.permission === "denied") {
-      setState("denied");
-      return;
-    }
+    if (state === "unsupported" || state === "denied") return;
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => setState(sub ? "on" : "off"))
       .catch(() => setState("off"));
-  }, []);
+  }, [state]);
 
   async function enable() {
     setBusy(true);

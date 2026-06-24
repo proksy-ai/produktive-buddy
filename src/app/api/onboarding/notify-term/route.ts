@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getBatchRule, resolveTermAvailability } from "@/lib/terms";
 import { voice } from "@/lib/voice";
+import { assertSameOrigin } from "@/server/security/csrf";
 
 const bodySchema = z.object({
   termId: z.string(),
@@ -12,6 +13,8 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const { termId } = bodySchema.parse(await request.json());
 
@@ -71,6 +74,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const { termId } = bodySchema.parse(await request.json());
 

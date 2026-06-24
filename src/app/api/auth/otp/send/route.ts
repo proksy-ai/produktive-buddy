@@ -10,6 +10,11 @@ import {
   createOtpToken,
   OtpRateLimitError,
 } from "@/lib/auth/otp";
+import {
+  checkRateLimit,
+  RateLimitError,
+  requestIp,
+} from "@/server/security/rate-limit";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -20,6 +25,18 @@ export async function POST(request: Request) {
     const json = await request.json();
     const { email } = bodySchema.parse(json);
     const normalized = normalizeInstituteEmail(email);
+    const ip = requestIp(request);
+
+    checkRateLimit({
+      key: `otp-send:ip:${ip}`,
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    });
+    checkRateLimit({
+      key: `otp-send:email:${normalized}`,
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
 
     if (!isInstituteEmail(normalized)) {
       return NextResponse.json(
@@ -40,7 +57,9 @@ export async function POST(request: Request) {
     }
 
     const { code } = await createOtpToken(normalized);
-    console.info(`[Kairo OTP] ${normalized} -> ${code}`);
+    if (process.env.NODE_ENV === "development") {
+      console.info(`[Kairo OTP] ${normalized} -> ${code}`);
+    }
 
     const payload: Record<string, unknown> = {
       ok: true,
@@ -56,6 +75,15 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof OtpRateLimitError) {
       return NextResponse.json({ error: err.message }, { status: 429 });
+    }
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: err.message },
+        {
+          status: 429,
+          headers: { "Retry-After": String(err.retryAfterSec) },
+        },
+      );
     }
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid email." }, { status: 400 });

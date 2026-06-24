@@ -24,6 +24,14 @@ export async function POST(request: Request) {
       : await syncAllSheetSources();
 
     const notifications = await dispatchPendingNotifications();
+    console.info("[cron/sync-sheets]", {
+      sheetSourceId,
+      sources: results.length,
+      changed: results.filter((r) => r.changed).length,
+      sessionsUpserted: results.reduce((sum, r) => sum + r.sessionsUpserted, 0),
+      changeEvents: results.reduce((sum, r) => sum + r.changeEvents, 0),
+      notifications,
+    });
 
     return NextResponse.json({ ok: true, results, notifications });
   } catch (err) {

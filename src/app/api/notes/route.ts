@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { saveSessionNote } from "@/features/notes/service";
 import { requireSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { auditLog } from "@/server/audit/service";
+import { assertSameOrigin } from "@/server/security/csrf";
 
 const bodySchema = z.object({
   sessionId: z.string(),
@@ -11,38 +13,17 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const body = bodySchema.parse(await request.json());
-
-    const user = await db.user.findUnique({
-      where: { id: session.id },
-      select: { activeTermId: true },
+    const note = await saveSessionNote(session.id, body.sessionId, body.body);
+    await auditLog({
+      actorId: session.id,
+      action: note ? "note.upsert" : "note.delete",
+      resource: body.sessionId,
+      request,
     });
-    const klass = await db.session.findUnique({
-      where: { id: body.sessionId },
-      select: { termId: true },
-    });
-
-    if (!user?.activeTermId || klass?.termId !== user.activeTermId) {
-      return NextResponse.json({ error: "Invalid class." }, { status: 400 });
-    }
-
-    const trimmed = body.body.trim();
-    if (!trimmed) {
-      await db.sessionNote.deleteMany({
-        where: { userId: session.id, sessionId: body.sessionId },
-      });
-      return NextResponse.json({ ok: true, note: null });
-    }
-
-    const note = await db.sessionNote.upsert({
-      where: {
-        userId_sessionId: { userId: session.id, sessionId: body.sessionId },
-      },
-      create: { userId: session.id, sessionId: body.sessionId, body: trimmed },
-      update: { body: trimmed },
-    });
-
     return NextResponse.json({ ok: true, note });
   } catch (err) {
     if (err instanceof z.ZodError) {

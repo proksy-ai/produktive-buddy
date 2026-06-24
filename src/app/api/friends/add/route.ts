@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { addFriendByCode } from "@/features/social/service";
 import { requireSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { auditLog } from "@/server/audit/service";
+import { assertSameOrigin } from "@/server/security/csrf";
 
 const bodySchema = z.object({
   code: z.string().min(6).max(16),
@@ -10,29 +12,17 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const { code } = bodySchema.parse(await request.json());
-
-    const target = await db.user.findUnique({
-      where: { friendCode: code.trim().toUpperCase() },
-      select: { id: true, name: true, email: true },
+    const target = await addFriendByCode(session.id, code);
+    await auditLog({
+      actorId: session.id,
+      action: "friend.add",
+      resource: target.id,
+      request,
     });
-    if (!target || target.id === session.id) {
-      return NextResponse.json({ error: "Friend code not found." }, { status: 404 });
-    }
-
-    const [a, b] = [session.id, target.id].sort();
-    await db.friendship.upsert({
-      where: { fromId_toId: { fromId: a, toId: b } },
-      create: {
-        fromId: a,
-        toId: b,
-        status: "ACCEPTED",
-        acceptedAt: new Date(),
-      },
-      update: { status: "ACCEPTED", acceptedAt: new Date() },
-    });
-
     return NextResponse.json({
       ok: true,
       friend: { id: target.id, name: target.name, email: target.email },

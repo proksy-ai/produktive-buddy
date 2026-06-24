@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { markStudentAttendance } from "@/features/attendance/service";
 import { requireSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { auditLog } from "@/server/audit/service";
+import { assertSameOrigin } from "@/server/security/csrf";
 
 const bodySchema = z.object({
   sessionId: z.string(),
@@ -12,36 +14,22 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const { sessionId, status } = bodySchema.parse(await request.json());
-
-    // Confirm the session is in the user's active term.
-    const user = await db.user.findUnique({
-      where: { id: session.id },
-      select: { activeTermId: true },
+    const saved = await markStudentAttendance(session.id, sessionId, status);
+    await auditLog({
+      actorId: session.id,
+      action: "attendance.mark",
+      resource: sessionId,
+      metadata: { status },
+      request,
     });
-    const klass = await db.session.findUnique({
-      where: { id: sessionId },
-      select: { termId: true },
+    return NextResponse.json({
+      ok: true,
+      status: saved,
     });
-    if (!user?.activeTermId || klass?.termId !== user.activeTermId) {
-      return NextResponse.json({ error: "Invalid class." }, { status: 400 });
-    }
-
-    if (status === "CLEAR") {
-      await db.attendance.deleteMany({
-        where: { userId: session.id, sessionId },
-      });
-      return NextResponse.json({ ok: true, status: null });
-    }
-
-    await db.attendance.upsert({
-      where: { userId_sessionId: { userId: session.id, sessionId } },
-      create: { userId: session.id, sessionId, status },
-      update: { status },
-    });
-
-    return NextResponse.json({ ok: true, status });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });

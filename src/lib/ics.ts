@@ -3,7 +3,7 @@ import type { ClassSession } from "@/lib/schedule";
 const IST_OFFSET_MIN = 5 * 60 + 30; // IST = UTC+5:30, no DST
 
 /** Convert a campus-local date+time (IST) to a UTC iCal timestamp. */
-function toUtcStamp(ymd: string, hm: string): string {
+export function toUtcStamp(ymd: string, hm: string): string {
   const [y, mo, d] = ymd.split("-").map(Number);
   const [h, mi] = hm.split(":").map(Number);
   const utc = new Date(Date.UTC(y, mo - 1, d, h, mi) - IST_OFFSET_MIN * 60000);
@@ -18,7 +18,7 @@ function toUtcStamp(ymd: string, hm: string): string {
   );
 }
 
-function escape(text: string): string {
+export function escapeIcsText(text: string): string {
   return text
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
@@ -41,7 +41,7 @@ export function buildCalendar(
     "PRODID:-//Kairo//Campus Schedule//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escape(calendarName)}`,
+    `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
     "X-WR-TIMEZONE:Asia/Kolkata",
     "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
     "X-PUBLISHED-TTL:PT1H",
@@ -62,10 +62,10 @@ export function buildCalendar(
       `DTSTAMP:${now}`,
       `DTSTART:${toUtcStamp(s.date, s.startTime)}`,
       `DTEND:${toUtcStamp(s.date, s.endTime)}`,
-      `SUMMARY:${escape(summary)}`,
+      `SUMMARY:${escapeIcsText(summary)}`,
     );
-    if (s.room) lines.push(`LOCATION:${escape(s.room)}`);
-    if (descParts.length) lines.push(`DESCRIPTION:${escape(descParts.join("\n"))}`);
+    if (s.room) lines.push(`LOCATION:${escapeIcsText(s.room)}`);
+    if (descParts.length) lines.push(`DESCRIPTION:${escapeIcsText(descParts.join("\n"))}`);
     if (s.status === "CANCELLED") lines.push("STATUS:CANCELLED");
     lines.push("END:VEVENT");
   }

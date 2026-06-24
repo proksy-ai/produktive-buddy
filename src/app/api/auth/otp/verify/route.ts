@@ -15,6 +15,11 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import {
+  checkRateLimit,
+  RateLimitError,
+  requestIp,
+} from "@/server/security/rate-limit";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -26,6 +31,18 @@ export async function POST(request: Request) {
     const json = await request.json();
     const { email, code } = bodySchema.parse(json);
     const normalized = normalizeInstituteEmail(email);
+    const ip = requestIp(request);
+
+    checkRateLimit({
+      key: `otp-verify:ip:${ip}`,
+      limit: 30,
+      windowMs: 60 * 60 * 1000,
+    });
+    checkRateLimit({
+      key: `otp-verify:email:${normalized}`,
+      limit: 10,
+      windowMs: 60 * 60 * 1000,
+    });
 
     if (!isInstituteEmail(normalized)) {
       return NextResponse.json(
@@ -80,6 +97,15 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof OtpVerificationError) {
       return NextResponse.json({ error: err.message }, { status: 401 });
+    }
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: err.message },
+        {
+          status: 429,
+          headers: { "Retry-After": String(err.retryAfterSec) },
+        },
+      );
     }
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });

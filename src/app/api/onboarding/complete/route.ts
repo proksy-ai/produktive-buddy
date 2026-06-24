@@ -10,6 +10,7 @@ import {
 import { db } from "@/lib/db";
 import { resolveTermAvailability } from "@/lib/terms";
 import { voice } from "@/lib/voice";
+import { assertSameOrigin } from "@/server/security/csrf";
 
 const enrollmentSchema = z.object({
   courseId: z.string(),
@@ -26,6 +27,8 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
     const session = await requireSession();
     const body = bodySchema.parse(await request.json());
 

@@ -1,12 +1,11 @@
 import { db } from "@/lib/db";
+import { attendancePolicy } from "@/features/attendance/policy";
 import {
   campusNow,
   getActiveTermContext,
   getUserSessions,
   type ClassSession,
 } from "@/lib/schedule";
-
-export const ATTENDANCE_THRESHOLD = 0.8; // IIMK 80% rule
 
 export type AttendanceMark = "PRESENT" | "ABSENT";
 
@@ -48,32 +47,32 @@ function summarize(
   const active = sessions.filter((s) => s.status !== "CANCELLED");
   const sample = active[0] ?? sessions[0];
   const credits = sample?.credits ?? null;
-  const expectedClasses =
-    sample?.expectedSessionsOverride ??
-    (credits ? Math.round(credits * 8) : active.length);
-  const requiredClasses = Math.ceil(expectedClasses * ATTENDANCE_THRESHOLD);
+  const policy = attendancePolicy({
+    credits,
+    scheduledSessions: active.length,
+    expectedSessionsOverride: sample?.expectedSessionsOverride,
+  });
   const held = active.filter((s) => isPast(s, now)).length;
   const absent = active.filter(
     (s) => isPast(s, now) && marks[s.id] === "ABSENT",
   ).length;
   const attended = held - absent;
   const percent = held === 0 ? 100 : Math.round((attended / held) * 100);
-  const allowedAbsences = expectedClasses - requiredClasses;
 
   return {
     courseId,
     abbr,
     name,
     credits,
-    total: expectedClasses,
+    total: policy.expectedClasses,
     scheduled: active.length,
     held,
     absent,
     attended,
     percent,
-    requiredClasses,
-    allowedAbsences,
-    bunksLeft: allowedAbsences - absent,
+    requiredClasses: policy.requiredClasses,
+    allowedAbsences: policy.allowedAbsences,
+    bunksLeft: policy.allowedAbsences - absent,
   };
 }
 

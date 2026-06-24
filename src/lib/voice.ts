@@ -2,7 +2,7 @@
 
 export const voice = {
   onboarding: {
-    welcome: (brand: string) => `New here? Same. Let's fix that.`,
+    welcome: (brand: string) => `New here? Same. Let's set up ${brand}.`,
     nameAsk: "What should we call you?",
     nameHint: "First name works. We won't quiz you on spelling.",
     rollHint: "Roll number — optional, but helps with exam seating later.",
@@ -47,7 +47,7 @@ export const voice = {
   batchComingSoon: {
     title: (program: string) => `${program} — almost there`,
     body: (program: string) =>
-      `Your batch schedules aren't live yet. The moment academic office shares the links, we plug them in — you won't need to reinstall anything.`,
+      `${program} schedules aren't live yet. The moment academic office shares the links, we plug them in — you won't need to reinstall anything.`,
     notifyCta: (program: string) => `Notify me when ${program} goes live`,
     notifyDone: "We'll holler when it's ready ✓",
   },

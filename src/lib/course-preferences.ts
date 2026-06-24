@@ -10,6 +10,20 @@ function isCourseColorKey(value: string): value is CourseColorKey {
   return COURSE_COLOR_KEYS.includes(value as CourseColorKey);
 }
 
+export function assignCourseColorKeys(
+  courseIds: string[],
+  used: Iterable<CourseColorKey> = [],
+): Map<string, CourseColorKey> {
+  const usedSet = new Set(used);
+  const available = COURSE_COLOR_KEYS.filter((key) => !usedSet.has(key));
+  const unique = [...new Set(courseIds)].sort();
+  const map = new Map<string, CourseColorKey>();
+  for (let i = 0; i < unique.length; i++) {
+    map.set(unique[i], available[i] ?? COURSE_COLOR_KEYS[i % COURSE_COLOR_KEYS.length]);
+  }
+  return map;
+}
+
 export async function ensureCourseColorPreferences(
   userId: string,
   termId: string,
@@ -32,15 +46,12 @@ export async function ensureCourseColorPreferences(
     }
   }
 
-  const available = COURSE_COLOR_KEYS.filter((key) => !used.has(key));
   const missing = uniqueCourseIds
     .filter((id) => !map.has(id))
     .sort();
+  const assigned = assignCourseColorKeys(missing, used);
 
-  for (let i = 0; i < missing.length; i++) {
-    const colorKey =
-      available[i] ?? COURSE_COLOR_KEYS[i % COURSE_COLOR_KEYS.length];
-    const courseId = missing[i];
+  for (const [courseId, colorKey] of assigned) {
     await db.userCoursePreference.upsert({
       where: { userId_termId_courseId: { userId, termId, courseId } },
       create: { userId, termId, courseId, colorKey },
