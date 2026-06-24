@@ -8,6 +8,7 @@ import { assertSameOrigin } from "@/server/security/csrf";
 
 const bodySchema = z.object({
   courseIds: z.array(z.string()).min(1),
+  sectionByCourse: z.record(z.string(), z.enum(["A", "B", "C"])).optional(),
 });
 
 export async function POST(request: Request) {
@@ -15,8 +16,12 @@ export async function POST(request: Request) {
     const csrf = assertSameOrigin(request);
     if (csrf) return csrf;
     const session = await requireSession();
-    const { courseIds } = bodySchema.parse(await request.json());
-    const result = await replaceActiveTermEnrollments(session.id, courseIds);
+    const { courseIds, sectionByCourse } = bodySchema.parse(await request.json());
+    const result = await replaceActiveTermEnrollments(
+      session.id,
+      courseIds,
+      sectionByCourse,
+    );
     await auditLog({
       actorId: session.id,
       action: "courses.enrollments.replace",

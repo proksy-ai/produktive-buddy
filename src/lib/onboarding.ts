@@ -59,6 +59,7 @@ export async function getOnboardingContextForUser(
     select: {
       name: true,
       rollNumber: true,
+      calendarPreference: true,
       onboardingCompletedAt: true,
       activeTermId: true,
       termNotifyRequests: { select: { termId: true } },
@@ -118,6 +119,7 @@ export async function getOnboardingContextForUser(
     user: {
       name: user?.name ?? "",
       rollNumber: user?.rollNumber ?? "",
+      calendarPreference: user?.calendarPreference ?? "LATER",
       onboardingCompleted: Boolean(user?.onboardingCompletedAt),
       activeTermId: user?.activeTermId ?? defaultTerm?.id ?? null,
     },

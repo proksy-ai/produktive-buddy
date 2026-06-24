@@ -117,13 +117,14 @@ export const voice = {
     termLive: (termName: string) =>
       `${termName} schedule just dropped. Tap in before your batchmates beat you to the good seats.`,
     batchLive: (program: string) =>
-      `${program} schedules are live on Kairo. Your campus life just got an upgrade.`,
+      `${program} schedules are live on Produktive Buddy. Your campus life just got an upgrade.`,
     termLiveTitle: (termName: string) => `${termName} is live 🎉`,
     cancelledTitle: "Class cancelled ❌",
     rescheduledTitle: "Class rescheduled 🔁",
     roomChangedTitle: "Room changed 📍",
     timeChangedTitle: "Time changed ⏰",
     addedTitle: "New class added ➕",
+    removedTitle: "Class removed 🧹",
     changeTitle: "Schedule update 📣",
   },
 } as const;

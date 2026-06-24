@@ -2,8 +2,8 @@
  * Central brand config. Change these to rebrand or white-label per college.
  */
 export const BRAND = {
-  name: "Kairo",
-  shortName: "Kairo",
+  name: "Produktive Buddy",
+  shortName: "Produktive Buddy",
   description:
     "Your personalized campus schedule - classes, changes, attendance, and notices in one calm, fast place.",
   // First college this instance serves. The data model supports many.

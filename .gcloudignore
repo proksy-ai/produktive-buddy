@@ -1,0 +1,14 @@
+# Keep the Cloud Build upload lean. The Dockerfile installs deps from lockfile.
+.git
+.github
+.cursor
+node_modules
+.next
+design-previews
+tests
+test-results
+playwright-report
+coverage
+*.log
+.env
+.env.*

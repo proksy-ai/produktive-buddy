@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 export async function replaceActiveTermEnrollments(
   userId: string,
   courseIds: string[],
+  sectionByCourse: Record<string, string | undefined> = {},
 ) {
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -12,7 +13,7 @@ export async function replaceActiveTermEnrollments(
 
   const courses = await db.course.findMany({
     where: { id: { in: courseIds }, termId: user.activeTermId },
-    select: { id: true },
+    include: { sections: true },
   });
   if (courses.length === 0) throw new Error("No valid courses.");
 
@@ -21,11 +22,18 @@ export async function replaceActiveTermEnrollments(
       where: { userId, termId: user.activeTermId! },
     });
     for (const c of courses) {
+      const requestedSection = sectionByCourse[c.id];
+      const section =
+        (requestedSection
+          ? c.sections.find((s) => s.code === requestedSection)
+          : null) ?? (c.sections.length === 1 ? c.sections[0] : null);
+
       await tx.enrollment.create({
         data: {
           userId,
           termId: user.activeTermId!,
           courseId: c.id,
+          courseSectionId: section?.id ?? null,
         },
       });
     }

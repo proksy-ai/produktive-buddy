@@ -1,0 +1,19 @@
+# One-off migration/seed image (full deps incl. prisma + tsx).
+# Run as a Cloud Run Job with the Cloud SQL instance attached; connects over
+# the /cloudsql unix socket, so it does not need local egress to port 3307.
+FROM node:22-slim
+ENV NEXT_TELEMETRY_DISABLED=1
+WORKDIR /app
+
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+# Dummy URL only satisfies prisma.config at generate time (no DB connection made).
+RUN DATABASE_URL="postgresql://localhost:5432/db" npx prisma generate
+
+# DATABASE_URL / DIRECT_URL are injected from Secret Manager at run time.
+CMD ["sh", "-lc", "npx prisma db push && npm run db:seed && npm run sync:sheets"]

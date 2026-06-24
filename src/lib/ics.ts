@@ -38,7 +38,7 @@ export function buildCalendar(
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Kairo//Campus Schedule//EN",
+    "PRODID:-//Produktive Buddy//Campus Schedule//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
@@ -48,17 +48,20 @@ export function buildCalendar(
   ];
 
   for (const s of sessions) {
+    if (s.status === "REMOVED") continue;
+
     const summaryBase = `${s.courseAbbr} · ${s.courseName}`;
     const summary =
       s.status === "CANCELLED" ? `Cancelled: ${summaryBase}` : summaryBase;
     const descParts = [
+      s.kind !== "CLASS" ? `Type: ${s.kind.replace("_", " ")}` : null,
       s.faculty ? `Faculty: ${s.faculty}` : null,
       s.sectionCode ? `Section: ${s.sectionCode}` : null,
     ].filter(Boolean);
 
     lines.push(
       "BEGIN:VEVENT",
-      `UID:${s.id}@kairo`,
+      `UID:${s.id}@produktivebuddy`,
       `DTSTAMP:${now}`,
       `DTSTART:${toUtcStamp(s.date, s.startTime)}`,
       `DTEND:${toUtcStamp(s.date, s.endTime)}`,

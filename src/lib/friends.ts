@@ -66,6 +66,7 @@ function currentClass(
     sessions.find(
       (s) =>
         s.status !== "CANCELLED" &&
+        s.status !== "REMOVED" &&
         s.date === now.ymd &&
         s.startTime <= now.hm &&
         s.endTime > now.hm,

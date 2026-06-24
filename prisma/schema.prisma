@@ -30,6 +30,26 @@ enum SessionStatus {
   CANCELLED // highlighted Red in the official sheet
   RESCHEDULED // highlighted Green in the official sheet
   ADDED
+  REMOVED // disappeared from the source sheet; preserved for student notes/history
+}
+
+enum SessionKind {
+  CLASS
+  TUTORIAL
+  QUIZ
+  EXAM
+  GUEST_LECTURE
+  WORKSHOP
+  MEETING
+  OTHER
+}
+
+enum CourseCategory {
+  CORE
+  ELECTIVE
+  LAB
+  WORKSHOP
+  OTHER
 }
 
 enum AttendanceStatus {
@@ -110,6 +130,34 @@ enum AuditSeverity {
   ERROR
 }
 
+enum CalendarShareScope {
+  DAY
+  WEEK
+  ALL_TIME
+  CUSTOM
+}
+
+enum CalendarProviderPreference {
+  GOOGLE
+  APPLE
+  BOTH
+  LATER
+}
+
+enum CampusEssentialKind {
+  MESS_MENU
+  SHUTTLE
+  CONTACT
+  QUICK_LINK
+  EMERGENCY
+}
+
+enum MealKind {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
 // ---------------------------------------------------------------------------
 // Institution hierarchy
 // ---------------------------------------------------------------------------
@@ -121,6 +169,9 @@ model College {
   timezone       String                  @default("Asia/Kolkata")
   programs       Program[]
   calendarEvents AcademicCalendarEvent[]
+  campusItems    CampusEssential[]
+  messMenus      MessMenu[]
+  shuttleTrips   ShuttleTrip[]
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
 }
@@ -273,6 +324,9 @@ model Course {
   credits                  Float?
   faculty                  String?
   programCode              String? // distinguishes columns in combined (year-2) sheets
+  category                 CourseCategory @default(CORE)
+  /// Academic area / department bucket, e.g. ECO, OBHR, FAC, HLAM, IS, DSOM, MM, SM.
+  area                     String?
   expectedSessionsOverride Int?
 
   sections         CourseSection[]
@@ -291,6 +345,12 @@ model CourseSection {
   course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   courseId String
   code     String // "A", "B", "C"
+
+  /// Human-readable weekly slots, e.g. "MON(1045-1200), TUE(1045-1200), FRI(1045-1200)".
+  timings        String?
+  professor      String?
+  totalSeats     Int?
+  remainingSeats Int?
 
   sessions    Session[]
   enrollments Enrollment[]
@@ -330,6 +390,7 @@ model Session {
   endTime      String // "10:30"
   room         String?
   status       SessionStatus @default(SCHEDULED)
+  kind         SessionKind   @default(CLASS)
   note         String?
   sourceColumn String? // raw sheet column header, e.g. "PGP-29 D1"
   rawCellText  String? // raw cell value, e.g. "GT-A"
@@ -369,7 +430,9 @@ model User {
 
   /// Stable secret for subscribing to the personal calendar feed (ICS).
   calendarToken String? @unique
+  calendarPreference CalendarProviderPreference @default(LATER)
 
+  calendarShares           CalendarShare[]
   termProfiles              UserTermProfile[]
   enrollments               Enrollment[]
   attendance                Attendance[]
@@ -498,6 +561,21 @@ model PushSubscription {
   @@index([userId])
 }
 
+model CalendarShare {
+  id        String             @id @default(cuid())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  token     String             @unique
+  scope     CalendarShareScope
+  startsOn  DateTime?
+  endsOn    DateTime?
+  revokedAt DateTime?
+  createdAt DateTime           @default(now())
+
+  @@index([userId, createdAt])
+  @@index([scope])
+}
+
 model Friendship {
   id         String           @id @default(cuid())
   from       User             @relation("FriendshipFrom", fields: [fromId], references: [id], onDelete: Cascade)
@@ -557,6 +635,59 @@ model AcademicCalendarEvent {
   @@index([collegeId, startDate])
   @@index([batchId, startDate])
   @@index([termId, startDate])
+}
+
+model CampusEssential {
+  id          String              @id @default(cuid())
+  college     College             @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId   String
+  kind        CampusEssentialKind
+  title       String
+  description String?
+  href        String?
+  phone       String?
+  sortOrder   Int                 @default(0)
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([collegeId, kind, isActive])
+}
+
+model MessMenu {
+  id        String   @id @default(cuid())
+  college   College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId String
+  date      DateTime?
+  dayOfWeek Int?
+  meal      MealKind
+  startsAt  String
+  endsAt    String
+  items     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([collegeId, date])
+  @@index([collegeId, dayOfWeek, meal])
+}
+
+/// Campus shuttle trip, shown to students like a recurring "lecture" block.
+model ShuttleTrip {
+  id                  String   @id @default(cuid())
+  college             College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  collegeId           String
+  sequence            Int // Sl. No. on the printed timetable
+  departTime          String // "08:55"
+  fromStop            String // "C&D Housing"
+  toStop              String // "Phase V Campus"
+  viaStop             String? // optional mid stop
+  finalStop           String? // e.g. "PGP Auditorium"
+  extendedToMainGate  Boolean  @default(false)
+  note                String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([collegeId, departTime])
 }
 
 // ---------------------------------------------------------------------------
@@ -640,4 +771,22 @@ model AuditLog {
 
   @@index([actorId, createdAt])
   @@index([action, createdAt])
+}
+
+/// Imported IIMK student roster — used to invite students and track signups.
+model RosterEntry {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String?
+  rollNumber String?
+  batchLabel String?
+  source     String? // e.g. "csv-import 2026-06"
+  invitedAt  DateTime?
+  joinedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([batchLabel])
+  @@index([invitedAt])
+  @@index([joinedAt])
 }

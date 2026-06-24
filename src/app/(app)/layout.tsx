@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/nav/app-header";
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { SideNav } from "@/components/nav/side-nav";
+import { InstallGuide } from "@/components/pwa/install-guide";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
@@ -20,15 +21,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-6xl">
+    <div className="min-h-dvh bg-[radial-gradient(circle_at_top,_color-mix(in_oklch,var(--color-primary)_10%,transparent),transparent_34rem)]">
+      <div className="mx-auto flex min-h-dvh w-full max-w-6xl">
       <SideNav />
-      <div className="flex min-h-dvh w-full min-w-0 flex-col md:border-x md:border-border">
+      <div className="flex min-h-dvh w-full min-w-0 flex-col">
         <AppHeader />
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:px-6 md:pb-10">
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:px-6 md:pb-10">
           {children}
         </main>
         <BottomNav className="md:hidden" />
       </div>
+      </div>
+      <InstallGuide />
     </div>
   );
 }

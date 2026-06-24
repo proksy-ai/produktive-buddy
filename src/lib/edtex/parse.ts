@@ -2,10 +2,12 @@ export interface ParsedEdtexCourse {
   code: string;
   name: string;
   professor: string | null;
+  sectionCode: "A" | "B" | "C" | null;
 }
 
 const COURSE_LINE =
   /^\s*\d+\s+(.+?)\s-\s(PG2[A-Z0-9-]+(?:\([A-Z]\))?)\s*(?:\((Prof\.\s[^)]+)\))?/i;
+const SECTION_RE = /\(([ABC])\)$/i;
 
 /** Parse confirmed-courses text extracted from an EDTEX PDF. */
 export function parseEdtexText(text: string): ParsedEdtexCourse[] {
@@ -26,10 +28,16 @@ export function parseEdtexText(text: string): ParsedEdtexCourse[] {
       name,
       code,
       professor: m[3]?.trim() ?? null,
+      sectionCode: extractSectionCode(code),
     });
   }
 
   return courses;
+}
+
+function extractSectionCode(code: string): "A" | "B" | "C" | null {
+  const section = code.match(SECTION_RE)?.[1]?.toUpperCase();
+  return section === "A" || section === "B" || section === "C" ? section : null;
 }
 
 function normalize(s: string): string {
@@ -47,6 +55,7 @@ export interface CourseMatch {
   courseAbbr: string;
   courseName: string;
   sections: string[];
+  detectedSection: "A" | "B" | "C" | null;
   needsSectionPick: boolean;
 }
 
@@ -95,7 +104,12 @@ export function matchEdtexToCatalog(
       continue;
     }
 
-    const sections = best.sections.map((s) => s.code);
+    const sections = best.sections
+      .map((s) => s.code)
+      .filter((code) => code === "A" || code === "B" || code === "C");
+    const detectedSection = item.sectionCode
+      ? sections.find((code) => code === item.sectionCode) ?? null
+      : null;
     matched.push({
       edtexCode: item.code,
       edtexName: item.name,
@@ -103,7 +117,8 @@ export function matchEdtexToCatalog(
       courseAbbr: best.abbr,
       courseName: best.name,
       sections,
-      needsSectionPick: sections.length > 1,
+      detectedSection,
+      needsSectionPick: sections.length > 1 && !detectedSection,
     });
   }
 

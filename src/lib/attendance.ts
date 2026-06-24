@@ -44,7 +44,9 @@ function summarize(
   marks: Record<string, AttendanceMark>,
   now: { ymd: string; hm: string },
 ): CourseAttendance {
-  const active = sessions.filter((s) => s.status !== "CANCELLED");
+  const active = sessions.filter(
+    (s) => s.status !== "CANCELLED" && s.status !== "REMOVED",
+  );
   const sample = active[0] ?? sessions[0];
   const credits = sample?.credits ?? null;
   const policy = attendancePolicy({

@@ -84,6 +84,10 @@ export function ScheduleView({
 
   const step = view === "day" ? 1 : 7;
   const go = (dir: -1 | 1) => setAnchor((a) => addDays(a, dir * step));
+  const railDays = useMemo(
+    () => Array.from({ length: 9 }, (_, i) => addDays(anchor, i - 4)),
+    [anchor],
+  );
 
   const weekDays = useMemo(() => {
     const start = weekStart(anchor);
@@ -97,17 +101,60 @@ export function ScheduleView({
 
   return (
     <div className="space-y-4">
+      <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <div className="flex min-w-max gap-2">
+          {railDays.map((day) => {
+            const count = byDate.get(day)?.length ?? 0;
+            const active = day === anchor;
+            const parsed = parse(day);
+            return (
+              <button
+                key={day}
+                type="button"
+                onClick={() => {
+                  setAnchor(day);
+                  setView("day");
+                }}
+                className={cn(
+                  "w-16 rounded-md border-2 border-foreground px-3 py-2 text-center transition-all",
+                  active
+                    ? "bg-accent text-accent-foreground shadow-nb-sm"
+                    : "bg-card text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span className="block text-[11px] font-semibold uppercase">
+                  {parsed.toLocaleDateString("en-IN", { weekday: "short" })}
+                </span>
+                <span className="mt-1 block text-lg font-semibold tabular-nums">
+                  {parsed.getDate()}
+                </span>
+                <span className="mt-1 block text-[10px]">
+                  {count || "free"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex items-center justify-between gap-2">
-        <div className="inline-flex rounded-lg border border-border p-0.5">
+        <button
+          type="button"
+          onClick={() => setAnchor(today)}
+          className="rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Today
+        </button>
+        <div className="inline-flex rounded-md border-2 border-foreground bg-card p-0.5">
           {(["day", "week"] as const).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => setView(v)}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                "rounded-sm px-3 py-1.5 text-sm font-bold transition-colors",
                 view === v
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -115,20 +162,13 @@ export function ScheduleView({
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => setAnchor(today)}
-          className="text-sm font-medium text-primary hover:underline"
-        >
-          {voice.schedule.today}
-        </button>
       </div>
 
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => go(-1)}
-          className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted"
+          className="rounded-full border border-border p-2 text-muted-foreground hover:bg-muted"
           aria-label={voice.schedule.prev}
         >
           <ChevronLeft className="size-4" />
@@ -137,7 +177,7 @@ export function ScheduleView({
         <button
           type="button"
           onClick={() => go(1)}
-          className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted"
+          className="rounded-full border border-border p-2 text-muted-foreground hover:bg-muted"
           aria-label={voice.schedule.next}
         >
           <ChevronRight className="size-4" />

@@ -28,8 +28,9 @@ describe("ICS helpers", () => {
       room: "CR A1",
       sectionCode: null,
       status: "CANCELLED",
+      kind: "CLASS",
     };
-    const calendar = buildCalendar([session], "Kairo");
+    const calendar = buildCalendar([session], "Produktive Buddy");
     expect(calendar).toContain("STATUS:CANCELLED");
     expect(calendar).toContain("SUMMARY:Cancelled: GT · Game Theory");
   });

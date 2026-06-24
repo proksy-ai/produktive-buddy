@@ -15,7 +15,10 @@ const BATCH_RULES: Record<string, BatchTermRule> = {
   PGP29: { rollout: "ready", bucket: "year2", liveTerms: [4] },
   FIN06: { rollout: "ready", bucket: "year1", liveTerms: [1] },
   LSM06: { rollout: "ready", bucket: "year1", liveTerms: [1] },
-  PGP30: { rollout: "coming_soon", bucket: null, liveTerms: [] },
+  // Testing cohorts: reuse prior Term I sheets until the official new links land.
+  PGP30: { rollout: "ready", bucket: "year1", liveTerms: [1] },
+  FIN07: { rollout: "ready", bucket: "year1", liveTerms: [1] },
+  LSM07: { rollout: "ready", bucket: "year1", liveTerms: [1] },
 };
 
 const YEAR1 = [1, 2, 3];

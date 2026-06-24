@@ -1,0 +1,33 @@
+# Optional: build the image with the public VAPID key baked in (needed for Web
+# Push). For a first deploy you can skip this and use `gcloud run deploy --source .`
+# (push notifications just stay disabled until you rebuild with this).
+#
+# Usage:
+#   gcloud builds submit \
+#     --config cloudbuild.yaml \
+#     --substitutions=_REGION=asia-south1,_REPO=kairo,_VAPID_PUBLIC=YOUR_PUBLIC_KEY
+#
+# Then deploy that image:
+#   gcloud run deploy kairo --image $_IMAGE --region $_REGION ...(see docs/deploy-gcp.md)
+
+substitutions:
+  _REGION: asia-south1
+  _REPO: produktive-buddy
+  _VAPID_PUBLIC: ""
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/produktive-buddy:latest"
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "--build-arg"
+      - "NEXT_PUBLIC_VAPID_PUBLIC_KEY=${_VAPID_PUBLIC}"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/produktive-buddy:latest"
+      - "."
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8

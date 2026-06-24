@@ -1,10 +1,8 @@
 "use client";
 
-import { Check, X } from "lucide-react";
 import { useState } from "react";
 
 import { SessionRow } from "@/components/app/session-row";
-import { Card, CardContent } from "@/components/ui/card";
 import type { AttendanceMark } from "@/lib/attendance";
 import type { ClassSession } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
@@ -56,11 +54,13 @@ export function ClassList({
   }
 
   return (
-    <Card>
-      <CardContent className="p-4 pb-0">
+    <div className="rounded-md border-2 border-foreground bg-card p-4 pb-0 shadow-nb">
         {sessions.map((s) => {
           const showToggle =
-            markable && s.status !== "CANCELLED" && isPast(s, now);
+            markable &&
+            s.status !== "CANCELLED" &&
+            s.status !== "REMOVED" &&
+            isPast(s, now);
           return (
             <SessionRow
               key={s.id}
@@ -76,8 +76,7 @@ export function ClassList({
             />
           );
         })}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -89,32 +88,32 @@ function AttendanceToggle({
   onMark: (m: AttendanceMark) => void;
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="grid min-w-28 grid-cols-1 gap-1">
       <button
         type="button"
-        aria-label="Present"
+        aria-label="Attended class"
         onClick={() => onMark("PRESENT")}
         className={cn(
-          "flex size-8 items-center justify-center rounded-lg border transition-colors",
+          "rounded-md border-2 border-foreground px-2.5 py-1.5 text-xs font-bold transition-all",
           mark === "PRESENT"
-            ? "border-emerald-500 bg-emerald-500 text-white"
-            : "border-border text-muted-foreground hover:border-emerald-400 hover:text-emerald-500",
+            ? "bg-success text-success-foreground shadow-nb-sm"
+            : "bg-card text-muted-foreground hover:bg-success/20",
         )}
       >
-        <Check className="size-4" />
+        Attended
       </button>
       <button
         type="button"
-        aria-label="Absent"
+        aria-label="Missed class"
         onClick={() => onMark("ABSENT")}
         className={cn(
-          "flex size-8 items-center justify-center rounded-lg border transition-colors",
+          "rounded-md border-2 border-foreground px-2.5 py-1.5 text-xs font-bold transition-all",
           mark === "ABSENT"
-            ? "border-destructive bg-destructive text-white"
-            : "border-border text-muted-foreground hover:border-destructive/60 hover:text-destructive",
+            ? "bg-destructive text-destructive-foreground shadow-nb-sm"
+            : "bg-card text-muted-foreground hover:bg-destructive/20",
         )}
       >
-        <X className="size-4" />
+        Missed
       </button>
     </div>
   );

@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+.cursor
+design-previews
+tests
+test-results
+playwright-report
+coverage
+docs
+*.log
+.env
+.env.*
+README*.md

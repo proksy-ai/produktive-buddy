@@ -25,7 +25,9 @@ export async function GET(request: Request) {
         name: c.name,
         faculty: c.faculty,
         credits: c.credits,
-        sections: c.sections.map((s) => s.code),
+        sections: c.sections
+          .map((s) => s.code)
+          .filter((code) => code === "A" || code === "B" || code === "C"),
       })),
     });
   } catch {

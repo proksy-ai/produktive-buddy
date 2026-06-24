@@ -6,6 +6,10 @@ export type FreeBusyState =
   | "you_busy"
   | "friend_busy";
 
+function isActiveClass(s: ClassSession) {
+  return s.status !== "CANCELLED" && s.status !== "REMOVED";
+}
+
 export function compareSlotsForDate(
   mine: ClassSession[],
   theirs: ClassSession[],
@@ -14,7 +18,7 @@ export function compareSlotsForDate(
   const starts = Array.from(
     new Set(
       [...mine, ...theirs]
-        .filter((s) => s.date === date && s.status !== "CANCELLED")
+        .filter((s) => s.date === date && isActiveClass(s))
         .flatMap((s) => [s.startTime, s.endTime]),
     ),
   ).sort();
@@ -24,14 +28,14 @@ export function compareSlotsForDate(
     const myClass = mine.find(
       (s) =>
         s.date === date &&
-        s.status !== "CANCELLED" &&
+        isActiveClass(s) &&
         s.startTime < end &&
         s.endTime > start,
     );
     const theirClass = theirs.find(
       (s) =>
         s.date === date &&
-        s.status !== "CANCELLED" &&
+        isActiveClass(s) &&
         s.startTime < end &&
         s.endTime > start,
     );

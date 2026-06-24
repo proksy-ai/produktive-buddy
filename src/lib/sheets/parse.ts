@@ -1,4 +1,4 @@
-import type { SessionStatus } from "@prisma/client";
+import type { CourseCategory, SessionKind, SessionStatus } from "@prisma/client";
 
 import {
   classifyCellColor,
@@ -13,6 +13,7 @@ export interface ParsedCourse {
   credits: number | null;
   faculty: string | null;
   programCode: string | null;
+  category: CourseCategory;
 }
 
 export interface ParsedSessionCell {
@@ -26,11 +27,17 @@ export interface ParsedSessionCell {
   cohortSectionCode: string | null;
   room: string | null;
   status: SessionStatus;
+  kind: SessionKind;
 }
 
 const SECTION_SPLIT = /[,/]/;
 const LUNCH_RE = /lunch\s*break/i;
 const MEETING_RE = /^meeting$/i;
+const QUIZ_RE = /\b(quiz|test)\b/i;
+const EXAM_RE = /\b(mid[\s-]?term|end[\s-]?term|exam|assessment)\b/i;
+const TUTORIAL_RE = /\b(tutorial|tut)\b/i;
+const WORKSHOP_RE = /\b(workshop|lab|simulation)\b/i;
+const GUEST_RE = /\b(guest|speaker|talk)\b/i;
 
 export function parseCourseDetails(rows: string[][]): ParsedCourse[] {
   if (rows.length < 2) return [];
@@ -72,10 +79,25 @@ export function parseCourseDetails(rows: string[][]): ParsedCourse[] {
       credits: credits && !Number.isNaN(credits) ? credits : null,
       faculty: facultyIdx >= 0 ? row[facultyIdx]?.trim() || null : null,
       programCode: currentProgram,
+      category: inferCourseCategory(abbr, name, currentProgram),
     });
   }
 
   return courses;
+}
+
+function inferCourseCategory(
+  abbr: string,
+  name: string,
+  programCode: string | null,
+): CourseCategory {
+  const text = `${abbr} ${name} ${programCode ?? ""}`;
+  if (/\b(lab|simulation)\b/i.test(text)) return "LAB";
+  if (/\b(workshop|bootcamp)\b/i.test(text)) return "WORKSHOP";
+  if (/\b(elective|pgp\s*29|fin|lsm)\b/i.test(text) || /\(.+\)/.test(abbr)) {
+    return "ELECTIVE";
+  }
+  return "CORE";
 }
 
 export function courseMatchesProgramFilter(
@@ -120,16 +142,31 @@ function parseSheetDate(raw: string): Date | null {
 function parseCourseCell(raw: string): {
   abbr: string;
   sectionCode: string | null;
+  kind: SessionKind;
 } | null {
   const text = raw.replace(/\n/g, " ").trim();
   if (!text || LUNCH_RE.test(text) || MEETING_RE.test(text)) return null;
 
   const sectionMatch = text.match(/^(.+?)-([A-Z])$/);
   if (sectionMatch) {
-    return { abbr: sectionMatch[1].trim(), sectionCode: sectionMatch[2] };
+    const abbr = sectionMatch[1].trim();
+    return {
+      abbr,
+      sectionCode: sectionMatch[2],
+      kind: inferSessionKind(text),
+    };
   }
 
-  return { abbr: text, sectionCode: null };
+  return { abbr: text, sectionCode: null, kind: inferSessionKind(text) };
+}
+
+function inferSessionKind(text: string): SessionKind {
+  if (EXAM_RE.test(text)) return "EXAM";
+  if (QUIZ_RE.test(text)) return "QUIZ";
+  if (TUTORIAL_RE.test(text)) return "TUTORIAL";
+  if (GUEST_RE.test(text)) return "GUEST_LECTURE";
+  if (WORKSHOP_RE.test(text)) return "WORKSHOP";
+  return "CLASS";
 }
 
 interface ScheduleColumn {
@@ -225,6 +262,7 @@ export function parseScheduleGrid(
         cohortSectionCode: col.cohortSectionCode,
         room: col.room,
         status: statusByRowCol.get(`${r}:${col.index}`) ?? "SCHEDULED",
+        kind: parsed.kind,
       });
     }
   }

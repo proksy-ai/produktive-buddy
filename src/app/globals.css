@@ -6,69 +6,79 @@
 /* ------------------------------------------------------------------ */
 /* Design tokens                                                       */
 /* ------------------------------------------------------------------ */
+/* Neubrutalism: hard black borders, flat bright color, offset shadows. */
 :root {
-  --radius: 0.95rem;
+  --radius: 0.35rem;
 
-  --background: oklch(0.985 0.006 255);
-  --foreground: oklch(0.19 0.02 255);
+  --background: oklch(0.97 0.03 95); /* warm paper */
+  --foreground: oklch(0.16 0 0); /* near-black ink */
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.02 255);
+  --card-foreground: oklch(0.16 0 0);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.19 0.02 255);
+  --popover-foreground: oklch(0.16 0 0);
 
-  --muted: oklch(0.955 0.009 255);
-  --muted-foreground: oklch(0.49 0.025 255);
+  --muted: oklch(0.95 0.03 95);
+  --muted-foreground: oklch(0.4 0.02 95);
 
-  --border: oklch(0.9 0.012 255);
-  --input: oklch(0.9 0.012 255);
-  --ring: oklch(0.55 0.16 260);
+  --border: oklch(0.16 0 0); /* black borders */
+  --input: oklch(0.16 0 0);
+  --ring: oklch(0.58 0.2 255);
 
-  --primary: oklch(0.53 0.16 260);
-  --primary-foreground: oklch(0.99 0.006 255);
+  --primary: oklch(0.58 0.2 255); /* pop blue */
+  --primary-foreground: oklch(0.99 0 0);
 
-  --accent: oklch(0.94 0.035 260);
-  --accent-foreground: oklch(0.38 0.13 260);
+  --accent: oklch(0.86 0.17 95); /* pop yellow */
+  --accent-foreground: oklch(0.16 0 0);
 
-  /* Semantic status colors (mapped from the official sheet). */
-  --success: oklch(0.62 0.14 155); /* rescheduled = green */
-  --success-foreground: oklch(0.99 0.006 255);
-  --destructive: oklch(0.57 0.19 25); /* cancelled = red */
-  --destructive-foreground: oklch(0.99 0.006 255);
-  --warning: oklch(0.75 0.14 75);
-  --warning-foreground: oklch(0.24 0.04 75);
+  /* Semantic status colors. */
+  --success: oklch(0.72 0.19 150); /* pop green */
+  --success-foreground: oklch(0.16 0 0);
+  --destructive: oklch(0.62 0.23 25); /* pop red */
+  --destructive-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.82 0.16 85);
+  --warning-foreground: oklch(0.16 0 0);
+
+  /* Neubrutalist offset shadows. */
+  --nb: 4px 4px 0 0 var(--foreground);
+  --nb-sm: 2px 2px 0 0 var(--foreground);
+  --nb-lg: 6px 6px 0 0 var(--foreground);
 }
 
 .dark {
-  --background: oklch(0.15 0.018 255);
-  --foreground: oklch(0.96 0.006 255);
+  --background: oklch(0.17 0.01 260);
+  --foreground: oklch(0.97 0 0);
 
-  --card: oklch(0.19 0.02 255);
-  --card-foreground: oklch(0.96 0.006 255);
+  --card: oklch(0.22 0.012 260);
+  --card-foreground: oklch(0.97 0 0);
 
-  --popover: oklch(0.19 0.02 255);
-  --popover-foreground: oklch(0.96 0.006 255);
+  --popover: oklch(0.22 0.012 260);
+  --popover-foreground: oklch(0.97 0 0);
 
-  --muted: oklch(0.25 0.022 255);
-  --muted-foreground: oklch(0.7 0.02 255);
+  --muted: oklch(0.28 0.015 260);
+  --muted-foreground: oklch(0.74 0.02 260);
 
-  --border: oklch(0.3 0.026 255);
-  --input: oklch(0.32 0.026 255);
-  --ring: oklch(0.68 0.13 260);
+  --border: oklch(0.97 0 0); /* light borders on dark */
+  --input: oklch(0.5 0.02 260);
+  --ring: oklch(0.72 0.16 255);
 
-  --primary: oklch(0.68 0.13 260);
-  --primary-foreground: oklch(0.14 0.018 255);
+  --primary: oklch(0.68 0.18 255);
+  --primary-foreground: oklch(0.12 0 0);
 
-  --accent: oklch(0.29 0.055 260);
-  --accent-foreground: oklch(0.88 0.05 260);
+  --accent: oklch(0.86 0.17 95);
+  --accent-foreground: oklch(0.16 0 0);
 
-  --success: oklch(0.69 0.13 155);
-  --success-foreground: oklch(0.14 0.018 255);
-  --destructive: oklch(0.65 0.17 25);
-  --destructive-foreground: oklch(0.99 0.006 255);
-  --warning: oklch(0.8 0.13 75);
-  --warning-foreground: oklch(0.18 0.03 75);
+  --success: oklch(0.74 0.18 150);
+  --success-foreground: oklch(0.12 0 0);
+  --destructive: oklch(0.66 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.82 0.16 85);
+  --warning-foreground: oklch(0.16 0 0);
+
+  --nb: 4px 4px 0 0 var(--foreground);
+  --nb-sm: 2px 2px 0 0 var(--foreground);
+  --nb-lg: 6px 6px 0 0 var(--foreground);
 }
 
 /* ------------------------------------------------------------------ */
@@ -100,6 +110,10 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
+  --shadow-nb: var(--nb);
+  --shadow-nb-sm: var(--nb-sm);
+  --shadow-nb-lg: var(--nb-lg);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -121,9 +135,7 @@
   }
 
   body {
-    background:
-      radial-gradient(circle at top left, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 34rem),
-      var(--color-background);
+    background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -131,10 +143,22 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Neubrutalism: heavy, tight headings. */
+  h1, h2, h3 {
+    font-weight: 800;
+    letter-spacing: -0.015em;
+  }
+
   /* Tabular numerals for clock-like times. */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Neubrutalist surface helper: hard border + offset shadow. */
+@utility nb-surface {
+  border: 2px solid var(--color-foreground);
+  box-shadow: var(--nb);
 }
 
 /* Safe-area helpers for notches / home indicators on installed PWAs. */

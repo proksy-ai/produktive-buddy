@@ -10,6 +10,7 @@ import {
   createOtpToken,
   OtpRateLimitError,
 } from "@/lib/auth/otp";
+import { sendOtpEmail } from "@/lib/email/send";
 import {
   checkRateLimit,
   RateLimitError,
@@ -58,8 +59,12 @@ export async function POST(request: Request) {
 
     const { code } = await createOtpToken(normalized);
     if (process.env.NODE_ENV === "development") {
-      console.info(`[Kairo OTP] ${normalized} -> ${code}`);
+      console.info(`[Produktive Buddy OTP] ${normalized} -> ${code}`);
     }
+
+    // Deliver the code. In production this must succeed; in development without
+    // an email provider it no-ops and we expose devCode below.
+    await sendOtpEmail(normalized, code);
 
     const payload: Record<string, unknown> = {
       ok: true,

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Kairo · Claymorphism</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --peach:#FDBCB4; --blue:#ADD8E6; --mint:#98FF98; --lilac:#E6E6FA;
+    --ink:#3b3357;
+  }
+  body{font-family:'Nunito Sans',sans-serif;color:var(--ink);
+    background:radial-gradient(1200px 600px at 20% -10%, #fff3ef, transparent),
+               radial-gradient(900px 500px at 100% 10%, #eef4ff, transparent),
+               #fbf7ff;}
+  .head{font-family:'Varela Round',sans-serif;}
+  .clay{
+    border-radius:24px;
+    background:#ffffff;
+    border:3px solid rgba(255,255,255,0.9);
+    box-shadow:8px 8px 18px rgba(126,113,179,0.18), -6px -6px 14px rgba(255,255,255,0.9),
+               inset -2px -2px 8px rgba(126,113,179,0.06), inset 2px 2px 8px rgba(255,255,255,0.7);
+  }
+  .clay-press{transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;}
+  .clay-press:active{transform:translateY(2px) scale(.99);box-shadow:4px 4px 10px rgba(126,113,179,0.18);}
+  .pill{border-radius:999px;}
+  .blob{filter:blur(0.2px);}
+</style>
+</head>
+<body class="h-full">
+  <div class="mx-auto flex min-h-dvh max-w-[430px] flex-col px-4 pb-28 pt-6">
+
+    <!-- header -->
+    <header class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="clay flex size-12 items-center justify-center" style="background:linear-gradient(135deg,#fff,#ffe9e4)">
+          <!-- baby elephant -->
+          <svg viewBox="0 0 64 64" class="size-8">
+            <circle cx="32" cy="34" r="18" fill="#cdbdf0"/>
+            <circle cx="18" cy="32" r="10" fill="#cdbdf0"/><circle cx="46" cy="32" r="10" fill="#cdbdf0"/>
+            <circle cx="26" cy="30" r="2.6" fill="#3b3357"/><circle cx="38" cy="30" r="2.6" fill="#3b3357"/>
+            <path d="M30 36c2 4 2 9-3 12" fill="none" stroke="#cdbdf0" stroke-width="6" stroke-linecap="round"/>
+            <path d="M28 38c3 2 6 2 9 0" fill="none" stroke="#3b3357" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs font-semibold opacity-60">For Piyush</p>
+          <p class="head text-lg leading-none">Kairo</p>
+        </div>
+      </div>
+      <button class="clay clay-press flex size-11 items-center justify-center pill" style="background:#fff" aria-label="Profile">
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#7b6fb3" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+      </button>
+    </header>
+
+    <!-- greeting -->
+    <div class="mt-6">
+      <p class="text-sm font-semibold opacity-60">Wednesday, 24 June</p>
+      <h1 class="head mt-1 text-3xl">Now, Piyush</h1>
+    </div>
+
+    <!-- calendar strip -->
+    <div class="mt-5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      <script>
+        document.write([['Sun',21],['Mon',22],['Tue',23],['Wed',24],['Thu',25],['Fri',26],['Sat',27]].map(([d,n],i)=>`
+          <div class="clay clay-press shrink-0 w-14 py-2 text-center ${i===3?'':''}" style="${i===3?'background:linear-gradient(135deg,#ffd2c9,#ffb7ab)':'background:#fff'}">
+            <p class="text-[11px] font-bold opacity-70">${d}</p>
+            <p class="head text-lg ${i===3?'':''}">${n}</p>
+          </div>`).join('')</script>
+    </div>
+
+    <!-- brief -->
+    <section class="clay mt-5 p-5" style="background:linear-gradient(135deg,#ffffff,#f3efff)">
+      <div class="flex items-center gap-2">
+        <span class="pill px-3 py-1 text-[11px] font-extrabold" style="background:#e7ffe9;color:#1f7a3a">KAIRO BRIEF</span>
+      </div>
+      <h2 class="head mt-3 text-2xl">Here's the move 🐘</h2>
+
+      <div class="mt-4 space-y-3">
+        <div class="clay flex items-center gap-3 p-3" style="background:#fff">
+          <span class="pill flex size-10 items-center justify-center" style="background:#dff0ff"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#2b6cb0" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <div class="min-w-0 flex-1">
+            <p class="text-[11px] font-bold opacity-60">NEXT UP</p>
+            <p class="font-extrabold truncate">Global Business Strategy</p>
+            <p class="text-xs opacity-60">09:15–10:30 · Thu 25 Jun · CR A1</p>
+          </div>
+        </div>
+        <div class="clay flex items-center gap-3 p-3" style="background:#fff">
+          <span class="pill flex size-10 items-center justify-center" style="background:#fff0db"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#b7791f" stroke-width="2"><path d="M4 11h16M6 11V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4M5 11l1 8h12l1-8"/></svg></span>
+          <div class="min-w-0 flex-1">
+            <p class="text-[11px] font-bold opacity-60">DINNER IS ON</p>
+            <p class="font-extrabold truncate">Paneer · Dal · Rice · Salad</p>
+            <p class="text-xs opacity-60">20:00–22:00</p>
+          </div>
+        </div>
+        <div class="clay flex items-center gap-3 p-3" style="background:#fff">
+          <span class="pill flex size-10 items-center justify-center" style="background:#e7ffe9"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#1f7a3a" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+          <div class="min-w-0 flex-1">
+            <p class="text-[11px] font-bold opacity-60">ATTENDANCE RISK</p>
+            <p class="font-extrabold truncate">Global Business Strategy</p>
+            <p class="text-xs opacity-60">90% · 4 bunks left</p>
+          </div>
+          <div class="head text-lg" style="color:#1f7a3a">90%</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- on deck -->
+    <div class="mt-6 flex items-center justify-between">
+      <h3 class="head text-lg">On deck</h3>
+      <button class="text-sm font-bold" style="color:#e08a7b">Full plan →</button>
+    </div>
+    <div class="clay mt-3 space-y-3 p-4" style="background:#fff">
+      <div class="flex items-center gap-3">
+        <div class="text-right w-12"><p class="head text-sm">11:00</p><p class="text-[11px] opacity-50">12:15</p></div>
+        <span class="size-3 pill" style="background:#ff9f8e"></span>
+        <p class="font-bold flex-1">Management of IT Products</p>
+        <span class="pill px-2 py-1 text-[11px] font-bold" style="background:#fff0eb;color:#d6694f">MITPS</span>
+      </div>
+      <div class="h-px" style="background:#f1ecff"></div>
+      <div class="flex items-center gap-3">
+        <div class="text-right w-12"><p class="head text-sm">14:00</p><p class="text-[11px] opacity-50">15:15</p></div>
+        <span class="size-3 pill" style="background:#8ec5ff"></span>
+        <p class="font-bold flex-1">Strategic Business & Risk</p>
+        <span class="pill px-2 py-1 text-[11px] font-bold" style="background:#eaf3ff;color:#2b6cb0">SBRA</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom nav -->
+  <nav class="fixed inset-x-0 bottom-0 mx-auto max-w-[430px] px-4 pb-5">
+    <div class="clay flex items-center justify-around p-2" style="background:#fff">
+      <button class="clay-press flex flex-col items-center gap-1 pill px-4 py-2" style="background:linear-gradient(135deg,#ffd2c9,#ffb7ab)">
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#7a3b30" stroke-width="2"><path d="M12 3l2 5 5 .5-4 3.5 1.5 5-4.5-3-4.5 3 1.5-5-4-3.5 5-.5z"/></svg>
+        <span class="text-[11px] font-extrabold" style="color:#7a3b30">Now</span>
+      </button>
+      <button class="clay-press flex flex-col items-center gap-1 px-4 py-2 opacity-60"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#7b6fb3" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span class="text-[11px] font-bold">Plan</span></button>
+      <button class="clay-press flex flex-col items-center gap-1 px-4 py-2 opacity-60"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#7b6fb3" stroke-width="2"><path d="M4 5h16v14H4z"/><path d="M8 5v14"/></svg><span class="text-[11px] font-bold">Subjects</span></button>
+      <button class="clay-press flex flex-col items-center gap-1 px-4 py-2 opacity-60"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#7b6fb3" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span class="text-[11px] font-bold">Me</span></button>
+    </div>
+  </nav>
+
+  <div class="fixed left-1/2 top-3 -translate-x-1/2 pill px-3 py-1 text-[11px] font-bold" style="background:#3b3357;color:#fff">Style 01 · Claymorphism</div>
+</body>
+</html>

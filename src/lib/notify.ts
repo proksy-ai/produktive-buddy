@@ -17,6 +17,8 @@ function changeTitle(type: ChangeType): string {
       return voice.notify.timeChangedTitle;
     case "ADDED":
       return voice.notify.addedTitle;
+    case "REMOVED":
+      return voice.notify.removedTitle;
     default:
       return voice.notify.changeTitle;
   }

@@ -1,8 +1,7 @@
-import { BookOpen, GraduationCap, User } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { AttendanceSummaryCard } from "@/components/app/attendance-card";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import { courseAccent } from "@/lib/colors";
 import { getActiveTermContext } from "@/lib/schedule";
 import { voice } from "@/lib/voice";
 
-export const metadata: Metadata = { title: "Courses" };
+export const metadata: Metadata = { title: "Subjects" };
 
 function ringColor(percent: number, held: number): string {
   if (held === 0) return "var(--color-muted-foreground)";
@@ -29,7 +28,7 @@ export default async function CoursesPage() {
   if (!ctx || ctx.courses.length === 0) {
     return (
       <div>
-        <PageHeader title="Courses" subtitle={voice.courses.subtitle} />
+        <PageHeader title="Subjects" subtitle="Only what affects your term." />
         <EmptyState
           icon={BookOpen}
           title={voice.courses.emptyTitle}
@@ -52,18 +51,14 @@ export default async function CoursesPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Courses"
-        subtitle={`${ctx.programName} · ${ctx.termName}`}
+        title="Subjects"
+        subtitle={`${ctx.termName} · attendance is judged subject-wise`}
         action={
           <Button asChild variant="outline" size="sm">
             <Link href="/courses/edit">Edit</Link>
           </Button>
         }
       />
-
-      {attendance?.overall && attendance.overall.held > 0 ? (
-        <AttendanceSummaryCard overall={attendance.overall} />
-      ) : null}
 
       <div className="grid gap-3">
         {ctx.courses.map((c) => {
@@ -72,10 +67,10 @@ export default async function CoursesPage() {
           return (
             <div
               key={c.id}
-              className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm"
+            className="flex items-center gap-3 rounded-[1.6rem] border border-border/70 bg-card/80 p-4 shadow-sm"
             >
               <span
-                className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+                className="flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                 style={{
                   color: accent,
                   background: `color-mix(in oklch, ${accent} 16%, transparent)`,
@@ -85,21 +80,11 @@ export default async function CoursesPage() {
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-snug">{c.name}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <p className="text-sm font-semibold leading-snug">{c.name}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   <span>{c.abbr}</span>
-                  <span className="inline-flex items-center gap-1">
-                    <User className="size-3" />
-                    {c.faculty ?? voice.courses.facultyTbd}
-                  </span>
-                  {c.credits ? (
-                    <span className="inline-flex items-center gap-1">
-                      <GraduationCap className="size-3" />
-                      {voice.courses.creditsLabel(c.credits)}
-                    </span>
-                  ) : null}
                   {c.sectionCode ? (
-                    <span>{voice.courses.sectionLabel(c.sectionCode)}</span>
+                    <span>Section {c.sectionCode}</span>
                   ) : null}
                 </div>
                 {att && att.held > 0 ? (

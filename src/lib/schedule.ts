@@ -1,4 +1,9 @@
-import type { Prisma, SessionStatus } from "@prisma/client";
+import type {
+  CourseCategory,
+  Prisma,
+  SessionKind,
+  SessionStatus,
+} from "@prisma/client";
 
 import {
   ensureCourseColorPreferences,
@@ -22,6 +27,7 @@ export interface ClassSession {
   room: string | null;
   sectionCode: string | null;
   status: SessionStatus;
+  kind: SessionKind;
 }
 
 export interface EnrolledCourse {
@@ -30,6 +36,7 @@ export interface EnrolledCourse {
   name: string;
   faculty: string | null;
   credits: number | null;
+  category: CourseCategory;
   sectionCode: string | null;
   colorKey: string;
 }
@@ -127,6 +134,7 @@ export async function getActiveTermContext(
       name: e.course.name,
       faculty: e.course.faculty,
       credits: e.course.credits,
+      category: e.course.category,
       sectionCode: e.courseSection?.code ?? null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -215,6 +223,7 @@ export async function getUserSessions(
     room: s.room,
     sectionCode: s.courseSection?.code ?? null,
     status: s.status,
+    kind: s.kind,
   }));
 }
 
@@ -240,7 +249,7 @@ export function findNextSession(
   now: { ymd: string; hm: string },
 ): ClassSession | null {
   for (const s of sessions) {
-    if (s.status === "CANCELLED") continue;
+    if (s.status === "CANCELLED" || s.status === "REMOVED") continue;
     if (s.date > now.ymd) return s;
     if (s.date === now.ymd && s.endTime > now.hm) return s;
   }

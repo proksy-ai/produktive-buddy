@@ -14,12 +14,13 @@ import { assertSameOrigin } from "@/server/security/csrf";
 
 const enrollmentSchema = z.object({
   courseId: z.string(),
-  courseSectionCode: z.string().optional(),
+  courseSectionCode: z.enum(["A", "B", "C"]).optional(),
 });
 
 const bodySchema = z.object({
   name: z.string().min(2).max(80),
   rollNumber: z.string().max(32).optional(),
+  calendarPreference: z.enum(["GOOGLE", "APPLE", "BOTH", "LATER"]).optional(),
   termId: z.string(),
   cohortSectionId: z.string().optional(),
   enrollments: z.array(enrollmentSchema).optional(),
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
         data: {
           name: body.name.trim(),
           rollNumber: body.rollNumber?.trim() || null,
+          calendarPreference: body.calendarPreference ?? "LATER",
           activeTermId: body.termId,
           onboardingCompletedAt: new Date(),
         },

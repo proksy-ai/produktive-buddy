@@ -10,7 +10,7 @@ function configure(): boolean {
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return false;
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT ?? "mailto:dev@kairo.app",
+    process.env.VAPID_SUBJECT ?? "mailto:dev@produktivebuddy.app",
     publicKey,
     privateKey,
   );

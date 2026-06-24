@@ -11,7 +11,7 @@ import { getSession } from "@/lib/auth/session";
 import { campusNow, getActiveTermContext, getUserSessions } from "@/lib/schedule";
 import { voice } from "@/lib/voice";
 
-export const metadata: Metadata = { title: "Schedule" };
+export const metadata: Metadata = { title: "Plan" };
 
 export default async function SchedulePage() {
   const session = await getSession();
@@ -20,7 +20,7 @@ export default async function SchedulePage() {
   if (!ctx || (ctx.isElective && ctx.courses.length === 0)) {
     return (
       <div>
-        <PageHeader title="Schedule" subtitle={voice.schedule.subtitle} />
+        <PageHeader title="Plan" subtitle={voice.schedule.subtitle} />
         <EmptyState
           icon={CalendarDays}
           title={voice.schedule.emptyTitle}
@@ -44,8 +44,8 @@ export default async function SchedulePage() {
   return (
     <div>
       <PageHeader
-        title="Schedule"
-        subtitle={`${ctx.programName} · ${ctx.termName}`}
+        title="Plan"
+        subtitle={`${ctx.termName} · official sheet, reduced to what you need`}
       />
       <ScheduleView
         sessions={sessions}

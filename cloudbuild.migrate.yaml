@@ -1,0 +1,23 @@
+# Build & push the one-off migration/seed image.
+# Usage:
+#   gcloud builds submit --config cloudbuild.migrate.yaml
+substitutions:
+  _REGION: asia-south1
+  _REPO: pb
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/migrate:latest"
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "-f"
+      - "Dockerfile.migrate"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/migrate:latest"
+      - "."
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8

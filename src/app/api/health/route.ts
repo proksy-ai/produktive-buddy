@@ -16,7 +16,7 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-      service: "kairo",
+      service: "produktive-buddy",
       db: "ok",
       userCount,
       latestSyncAt: latestSync?.fetchedAt ?? null,
@@ -28,7 +28,7 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: false,
-        service: "kairo",
+        service: "produktive-buddy",
         db: "error",
         latencyMs: Date.now() - started,
       },

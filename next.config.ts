@@ -34,6 +34,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Lean, self-contained server bundle for the Docker/Cloud Run image.
+  output: "standalone",
   serverExternalPackages: [
     "pdf-parse",
     "pdfjs-dist",

@@ -75,6 +75,12 @@ export async function POST(request: Request) {
       include: { batch: true },
     });
 
+    // If this student was on the invite roster, record that they joined.
+    await db.rosterEntry.updateMany({
+      where: { email: normalized, joinedAt: null },
+      data: { joinedAt: new Date() },
+    });
+
     const token = await createSessionToken({
       id: user.id,
       email: user.email,

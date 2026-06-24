@@ -48,6 +48,52 @@ export function AttendanceSummaryCard({
   );
 }
 
+export function SubjectAttendancePulse({
+  courses,
+}: {
+  courses: CourseAttendance[];
+}) {
+  const active = courses
+    .filter((c) => c.held > 0)
+    .sort((a, b) => a.bunksLeft - b.bunksLeft || a.percent - b.percent);
+  const focus = active[0];
+
+  if (!focus) return null;
+
+  const risky = focus.bunksLeft <= 1 || focus.percent < 85;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Subject attendance
+          </p>
+          <p className="mt-1 truncate text-sm font-semibold">{focus.name}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {risky
+              ? "This is the one to protect. Grade drops happen subject-wise."
+              : "All calm for now. Chef's kiss, but keep showing up."}
+          </p>
+        </div>
+        <ProgressRing
+          value={focus.percent}
+          color={ringColor(focus.percent)}
+          size={60}
+          strokeWidth={6}
+          label={`${focus.percent}%`}
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span>{voice.attendance.held(focus.attended, focus.held)}</span>
+        <span className="font-medium text-foreground">
+          {voice.attendance.bunksLeft(focus.bunksLeft)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function CourseAttendanceList({
   courses,
 }: {

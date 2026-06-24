@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bell,
+  CalendarDays,
   Check,
   Loader2,
   Lock,
@@ -12,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { BabyElephantMascot } from "@/components/onboarding/baby-elephant-mascot";
 import { LockedTermSheet } from "@/components/onboarding/locked-term-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +29,7 @@ interface CourseMatch {
   courseId: string;
   courseName: string;
   sections: string[];
+  detectedSection: "A" | "B" | "C" | null;
   needsSectionPick: boolean;
 }
 
@@ -37,6 +40,7 @@ interface CatalogCourse {
 }
 
 type Step =
+  | "calendar"
   | "profile"
   | "confirm"
   | "waiting"
@@ -45,12 +49,41 @@ type Step =
   | "courses"
   | "sections";
 
+type CalendarPreference = "GOOGLE" | "APPLE" | "BOTH" | "LATER";
+
+const CALENDAR_OPTIONS: {
+  value: CalendarPreference;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "GOOGLE",
+    label: "Google Calendar",
+    description: "Best if your classes live beside Gmail and Android.",
+  },
+  {
+    value: "APPLE",
+    label: "Apple Calendar",
+    description: "Best for iPhone, iPad, and Mac home screens.",
+  },
+  {
+    value: "BOTH",
+    label: "Both",
+    description: "Give me universal links. I’ll choose per device.",
+  },
+  {
+    value: "LATER",
+    label: "Later",
+    description: "Let me enter first. No pressure, baby elephant promise.",
+  },
+];
+
 function stepsForFlow(
   rollout: OnboardingContextData["rollout"],
   term: OnboardingTerm | undefined,
 ): Step[] {
-  if (rollout === "coming_soon") return ["profile", "confirm", "waiting"];
-  const base: Step[] = ["profile", "confirm", "term"];
+  if (rollout === "coming_soon") return ["calendar", "profile", "confirm", "waiting"];
+  const base: Step[] = ["calendar", "profile", "confirm", "term"];
   if (!term) return base;
   if (term.isElective) return [...base, "courses"];
   if (term.needsSection) return [...base, "section"];
@@ -66,13 +99,15 @@ export function OnboardingWizard({
   const { program, rollout } = initial;
 
   const [terms, setTerms] = useState(initial.terms);
-  const [step, setStep] = useState<Step>("profile");
+  const [step, setStep] = useState<Step>("calendar");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lockedTerm, setLockedTerm] = useState<OnboardingTerm | null>(null);
 
   const [name, setName] = useState(initial.user.name);
   const [rollNumber, setRollNumber] = useState(initial.user.rollNumber);
+  const [calendarPreference, setCalendarPreference] =
+    useState<CalendarPreference>(initial.user.calendarPreference);
   const liveDefault =
     initial.terms.find((t) => t.availability === "live")?.id ??
     initial.defaultTermId ??
@@ -106,7 +141,9 @@ export function OnboardingWizard({
   function headline(): string {
     switch (step) {
       case "profile":
-        return `Welcome to ${BRAND.name}`;
+        return "First, your identity";
+      case "calendar":
+        return "Choose your sync style";
       case "confirm":
         return displayName ? `Hey, ${displayName} 👋` : "One quick check";
       case "waiting":
@@ -167,18 +204,21 @@ export function OnboardingWizard({
             courseId: string;
             courseName: string;
             sections: string[];
+            detectedSection: "A" | "B" | "C" | null;
             needsSectionPick: boolean;
           }) => ({
             courseId: m.courseId,
             courseName: m.courseName,
             sections: m.sections,
+            detectedSection: m.detectedSection,
             needsSectionPick: m.needsSectionPick,
           }),
         ),
       );
       const auto: Record<string, string> = {};
       for (const m of data.matched ?? []) {
-        if (m.sections?.length === 1) auto[m.courseId] = m.sections[0];
+        if (m.detectedSection) auto[m.courseId] = m.detectedSection;
+        else if (m.sections?.length === 1) auto[m.courseId] = m.sections[0];
       }
       setSectionByCourse(auto);
     } catch (err) {
@@ -241,6 +281,7 @@ export function OnboardingWizard({
       const body: Record<string, unknown> = {
         name: name.trim(),
         rollNumber: rollNumber.trim() || undefined,
+        calendarPreference,
         termId,
       };
       if (selectedTerm?.isElective) {
@@ -289,6 +330,10 @@ export function OnboardingWizard({
 
   function goNext() {
     setError(null);
+    if (step === "calendar") {
+      setStep("profile");
+      return;
+    }
     if (step === "profile") {
       if (name.trim().length < 2) {
         setError(voice.onboarding.nameTooShort);
@@ -334,7 +379,7 @@ export function OnboardingWizard({
       return;
     }
     if (step === "courses") {
-      const count = useManualPick ? selectedCourseIds.size : matched.length;
+      const count = buildEnrollments().length;
       if (count === 0) {
         setError(voice.onboarding.addCourses);
         return;
@@ -363,6 +408,7 @@ export function OnboardingWizard({
     else if (step === "term") setStep("confirm");
     else if (step === "waiting") setStep("confirm");
     else if (step === "confirm") setStep("profile");
+    else if (step === "profile") setStep("calendar");
   }
 
   const isLastStep =
@@ -384,18 +430,30 @@ export function OnboardingWizard({
 
   return (
     <>
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
-        <header className="mb-8 text-center">
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-8">
+        <header className="mb-6 text-center">
+          <BabyElephantMascot
+            mood={step === "calendar" ? "celebrate" : step === "courses" ? "thinking" : "happy"}
+            className="mb-5"
+          />
           <p className="text-xs font-medium tracking-wide text-primary uppercase">
             {program.name} · {program.session}
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">
             {headline()}
           </h1>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+            A tiny campus companion is packing your schedule, attendance, and calendar into one clean quest.
+          </p>
         </header>
 
         {flowSteps.length > 2 && step !== "waiting" && (
-          <div className="mb-6 flex gap-1">
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+              <span>Quest {Math.max(stepIndex + 1, 1)}</span>
+              <span>{Math.round(((stepIndex + 1) / flowSteps.length) * 100)}%</span>
+            </div>
+            <div className="flex gap-1">
             {flowSteps.map((s, i) => (
               <div
                 key={s}
@@ -405,11 +463,52 @@ export function OnboardingWizard({
                 )}
               />
             ))}
+            </div>
           </div>
         )}
 
-        <Card>
+        <Card className="overflow-hidden rounded-[2rem] border-border/70 bg-card/90 shadow-xl shadow-primary/5">
           <CardContent className="space-y-5 p-6">
+            {step === "calendar" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Pick where your timetable should live. We&apos;ll generate the
+                  right subscribe link and keep changes synced through calendar
+                  refreshes.
+                </p>
+                <div className="grid gap-2">
+                  {CALENDAR_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setCalendarPreference(option.value)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors",
+                        calendarPreference === option.value
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-muted/50",
+                      )}
+                    >
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <CalendarDays className="size-5 text-primary" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">
+                          {option.label}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {option.description}
+                        </span>
+                      </span>
+                      {calendarPreference === option.value ? (
+                        <Check className="size-4 text-primary" />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
             {step === "profile" && (
               <>
                 <p className="text-sm text-muted-foreground">
@@ -618,6 +717,9 @@ export function OnboardingWizard({
                       {matched.map((m) => (
                         <li key={m.courseId} className="truncate">
                           {m.courseName}
+                          {sectionByCourse[m.courseId]
+                            ? ` · Section ${sectionByCourse[m.courseId]}`
+                            : ""}
                         </li>
                       ))}
                     </ul>

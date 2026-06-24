@@ -13,7 +13,7 @@ export function BottomNav({ className }: { className?: string }) {
     <nav
       aria-label="Primary"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/80 backdrop-blur-lg pb-safe",
+        "fixed inset-x-0 bottom-0 z-40 border-t-2 border-foreground bg-background pb-safe",
         className,
       )}
     >
@@ -25,25 +25,21 @@ export function BottomNav({ className }: { className?: string }) {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium transition-colors",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                )}
+                className="flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-bold"
               >
                 <span
                   className={cn(
-                    "flex h-8 w-12 items-center justify-center rounded-full transition-colors",
-                    active && "bg-primary/12",
+                    "flex h-8 w-12 items-center justify-center rounded-md border-2 transition-colors",
+                    active
+                      ? "border-foreground bg-accent text-accent-foreground shadow-nb-sm"
+                      : "border-transparent text-muted-foreground",
                   )}
                 >
-                  <Icon
-                    className={cn(
-                      "size-5 transition-transform",
-                      active && "scale-110 fill-primary/15",
-                    )}
-                  />
+                  <Icon className="size-5" />
                 </span>
-                {label}
+                <span className={active ? "text-foreground" : "text-muted-foreground"}>
+                  {label}
+                </span>
               </Link>
             </li>
           );

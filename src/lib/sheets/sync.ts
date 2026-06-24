@@ -57,12 +57,14 @@ async function upsertCoursesForTerm(
         credits: c.credits,
         faculty: c.faculty,
         programCode: c.programCode,
+        category: c.category,
       },
       update: {
         name: c.name,
         credits: c.credits,
         faculty: c.faculty,
         programCode: c.programCode,
+        category: c.category,
       },
     });
 
@@ -168,6 +170,7 @@ async function syncTermSessions(
         where: { id: prev.id },
         data: {
           status: cell.status,
+          kind: cell.kind,
           room: cell.room,
           endTime: cell.endTime,
           courseSectionId: courseSection?.id ?? null,
@@ -186,6 +189,7 @@ async function syncTermSessions(
           endTime: cell.endTime,
           room: cell.room,
           status: cell.status,
+          kind: cell.kind,
           sourceColumn: cell.sourceColumn,
           rawCellText: cell.rawCellText,
         },
@@ -194,9 +198,10 @@ async function syncTermSessions(
     upserted++;
   }
 
-  // Remove sessions no longer in the sheet.
+  // Preserve sessions no longer in the sheet so student notes and attendance
+  // stay attached even when the source sheet changes under us.
   for (const [key, session] of existingByKey) {
-    if (!seenKeys.has(key)) {
+    if (!seenKeys.has(key) && session.status !== "REMOVED") {
       await db.changeEvent.create({
         data: {
           sheetSourceId,
@@ -206,7 +211,10 @@ async function syncTermSessions(
         },
       });
       changeEvents++;
-      await db.session.delete({ where: { id: session.id } });
+      await db.session.update({
+        where: { id: session.id },
+        data: { status: "REMOVED" },
+      });
     }
   }
 
@@ -220,7 +228,14 @@ export async function syncSheetSource(
     where: { id: sheetSourceId },
     include: {
       terms: {
-        include: { term: { include: { batch: true } } },
+        include: {
+          term: {
+            include: {
+              batch: true,
+              _count: { select: { courses: true, sessions: true } },
+            },
+          },
+        },
       },
     },
   });
@@ -235,6 +250,9 @@ export async function syncSheetSource(
 
   const hash = contentHash(JSON.stringify({ courseRows, scheduleRows }));
   const changed = hash !== source.lastContentHash;
+  const hasEmptyLinkedTerms = source.terms.some(
+    (link) => link.term._count.courses === 0 || link.term._count.sessions === 0,
+  );
 
   await db.syncSnapshot.create({
     data: {
@@ -244,7 +262,7 @@ export async function syncSheetSource(
     },
   });
 
-  if (!changed && source.lastSyncedAt) {
+  if (!changed && source.lastSyncedAt && !hasEmptyLinkedTerms) {
     return {
       sheetSourceId,
       label: source.label,

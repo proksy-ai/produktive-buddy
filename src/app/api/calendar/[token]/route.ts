@@ -14,24 +14,36 @@ export async function GET(
     select: { id: true, name: true },
   });
 
-  if (!user) {
+  const share = user
+    ? null
+    : await db.calendarShare.findUnique({
+        where: { token },
+        include: { user: { select: { id: true, name: true } } },
+      });
+
+  if (!user && (!share || share.revokedAt)) {
     return new Response("Not found", { status: 404 });
   }
 
+  const owner = user ?? share!.user;
+
   const [ctx, sessions] = await Promise.all([
-    getActiveTermContext(user.id),
-    getUserSessions(user.id),
+    getActiveTermContext(owner.id),
+    getUserSessions(owner.id, {
+      from: share?.startsOn ?? undefined,
+      to: share?.endsOn ?? undefined,
+    }),
   ]);
 
   const calName = ctx
-    ? `Kairo · ${ctx.programName} ${ctx.termName}`
-    : "Kairo Schedule";
+    ? `Produktive Buddy · ${ctx.programName} ${ctx.termName}${share ? " · shared" : ""}`
+    : "Produktive Buddy Schedule";
   const body = buildCalendar(sessions, calName);
 
   return new Response(body, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'inline; filename="kairo.ics"',
+      "Content-Disposition": 'inline; filename="produktive-buddy.ics"',
       "Cache-Control": "public, max-age=900",
     },
   });

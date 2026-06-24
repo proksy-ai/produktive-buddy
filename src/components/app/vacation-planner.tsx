@@ -17,7 +17,10 @@ export function VacationPlanner({ sessions }: { sessions: ClassSession[] }) {
 
   const impact = useMemo(() => {
     const missed = sessions.filter(
-      (s) => s.status !== "CANCELLED" && inRange(s.date, start, end),
+      (s) =>
+        s.status !== "CANCELLED" &&
+        s.status !== "REMOVED" &&
+        inRange(s.date, start, end),
     );
     const byCourse = new Map<string, { name: string; count: number }>();
     for (const s of missed) {

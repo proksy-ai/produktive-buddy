@@ -10,10 +10,10 @@ export async function POST(request: Request) {
     if (csrf) return csrf;
     const session = await requireSession();
     const sent = await sendToUser(session.id, {
-      title: "Kairo works 🎉",
+      title: "Produktive Buddy works 🎉",
       body: "Notifications are on. We'll only ping you when it matters.",
       url: "/today",
-      tag: "kairo-test",
+      tag: "produktive-buddy-test",
     });
     return NextResponse.json({ ok: true, sent });
   } catch {

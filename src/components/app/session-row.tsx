@@ -26,6 +26,22 @@ const STATUS_STYLES: Record<
     dot: "bg-amber-500",
     text: "text-amber-600 dark:text-amber-400",
   },
+  REMOVED: {
+    label: "Removed",
+    dot: "bg-muted",
+    text: "text-muted-foreground",
+  },
+};
+
+const KIND_LABELS: Record<ClassSession["kind"], string> = {
+  CLASS: "Class",
+  TUTORIAL: "Tutorial",
+  QUIZ: "Quiz",
+  EXAM: "Exam",
+  GUEST_LECTURE: "Guest",
+  WORKSHOP: "Workshop",
+  MEETING: "Meeting",
+  OTHER: "Other",
 };
 
 export function SessionRow({
@@ -36,7 +52,7 @@ export function SessionRow({
   action?: ReactNode;
 }) {
   const style = STATUS_STYLES[session.status];
-  const cancelled = session.status === "CANCELLED";
+  const inactive = session.status === "CANCELLED" || session.status === "REMOVED";
   const accent = courseAccent(session.colorKey);
 
   return (
@@ -53,7 +69,7 @@ export function SessionRow({
       <div className="relative flex flex-col items-center">
         <span
           className="mt-1.5 size-2.5 rounded-full ring-2 ring-background"
-          style={{ background: cancelled ? "var(--color-muted)" : accent }}
+          style={{ background: inactive ? "var(--color-muted)" : accent }}
         />
         <span className="mt-1 w-px flex-1 bg-border" />
       </div>
@@ -64,7 +80,7 @@ export function SessionRow({
             className={cn(
               "text-sm font-medium leading-snug",
               "hover:text-primary",
-              cancelled && "text-muted-foreground line-through",
+              inactive && "text-muted-foreground line-through",
             )}
           >
             {session.courseName}
@@ -85,6 +101,11 @@ export function SessionRow({
             >
               {session.courseAbbr}
             </span>
+            {session.kind !== "CLASS" ? (
+              <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-foreground">
+                {KIND_LABELS[session.kind]}
+              </span>
+            ) : null}
             {session.room ? (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="size-3" />

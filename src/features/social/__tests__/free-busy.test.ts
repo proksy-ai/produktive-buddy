@@ -19,6 +19,7 @@ function session(overrides: Partial<ClassSession>): ClassSession {
     room: null,
     sectionCode: null,
     status: "SCHEDULED",
+    kind: "CLASS",
     ...overrides,
   };
 }

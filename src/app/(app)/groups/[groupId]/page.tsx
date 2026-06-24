@@ -14,6 +14,7 @@ function busyAt(sessions: ClassSession[], date: string, start: string, end: stri
   return sessions.find(
     (s) =>
       s.status !== "CANCELLED" &&
+      s.status !== "REMOVED" &&
       s.date === date &&
       s.startTime < end &&
       s.endTime > start,
@@ -56,7 +57,12 @@ export default async function GroupDetailPage({
     new Set(
       schedules.flatMap((s) =>
         s.sessions
-          .filter((klass) => klass.date === now.ymd && klass.status !== "CANCELLED")
+          .filter(
+            (klass) =>
+              klass.date === now.ymd &&
+              klass.status !== "CANCELLED" &&
+              klass.status !== "REMOVED",
+          )
           .flatMap((klass) => [klass.startTime, klass.endTime]),
       ),
     ),

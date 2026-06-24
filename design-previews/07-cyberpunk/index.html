@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Kairo · Cyberpunk</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  body{font-family:'Space Mono',monospace;color:#d6f7ff;background:#0a0a16;}
+  .scan::before{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;
+    background:repeating-linear-gradient(180deg,rgba(0,255,255,0.04) 0 1px,transparent 1px 3px);}
+  .panel{background:#0e0e22;border:1px solid rgba(0,255,255,0.25);
+    box-shadow:0 0 18px rgba(0,255,255,0.08), inset 0 0 12px rgba(255,0,110,0.05);border-radius:6px;}
+  .glow-c{color:#00f5ff;text-shadow:0 0 8px rgba(0,245,255,.6);}
+  .glow-p{color:#ff2d78;text-shadow:0 0 8px rgba(255,45,120,.6);}
+  .bar{height:6px;background:linear-gradient(90deg,#00f5ff,#ff2d78);box-shadow:0 0 10px rgba(0,245,255,.5);}
+  .press{transition:transform .12s ease, box-shadow .12s ease;}
+  .press:active{transform:translateY(1px);}
+  .chip{border:1px solid rgba(0,245,255,.4);color:#00f5ff;}
+</style>
+</head>
+<body class="scan h-full">
+  <div class="mx-auto flex min-h-dvh max-w-[430px] flex-col px-4 pb-28 pt-6">
+
+    <header class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="panel flex size-12 items-center justify-center">
+          <svg viewBox="0 0 64 64" class="size-8">
+            <circle cx="32" cy="34" r="18" fill="#00f5ff"/>
+            <circle cx="18" cy="32" r="10" fill="#00f5ff"/><circle cx="46" cy="32" r="10" fill="#00f5ff"/>
+            <circle cx="26" cy="30" r="2.6" fill="#0a0a16"/><circle cx="38" cy="30" r="2.6" fill="#0a0a16"/>
+            <path d="M30 36c2 4 2 9-3 12" fill="none" stroke="#00f5ff" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div><p class="text-xs opacity-60">// for piyush</p><p class="text-lg font-bold glow-c tracking-widest">KAIRO</p></div>
+      </div>
+      <button class="panel press flex size-11 items-center justify-center" aria-label="Profile"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#ff2d78" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></button>
+    </header>
+
+    <div class="mt-6">
+      <p class="text-sm opacity-60">[ WED 24.06 · 21:42 IST ]</p>
+      <h1 class="mt-1 text-3xl font-bold">NOW, <span class="glow-p">PIYUSH</span></h1>
+      <div class="bar mt-3 w-2/3"></div>
+    </div>
+
+    <div class="mt-5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      <script>
+        document.write([['SUN',21],['MON',22],['TUE',23],['WED',24],['THU',25],['FRI',26],['SAT',27]].map(([d,n],i)=>`
+          <div class="panel press shrink-0 w-14 py-2 text-center ${i===3?'!border-[#ff2d78]':''}">
+            <p class="text-[11px] ${i===3?'glow-p':'opacity-60'}">${d}</p>
+            <p class="text-lg font-bold ${i===3?'glow-c':''}">${n}</p>
+          </div>`).join('')</script>
+    </div>
+
+    <section class="panel mt-5 p-5">
+      <span class="chip inline-block px-2 py-0.5 text-[11px]">KAIRO//BRIEF</span>
+      <h2 class="mt-3 text-2xl font-bold glow-c">&gt; HERE'S THE MOVE</h2>
+      <div class="mt-4 space-y-3">
+        <div class="panel press flex items-center gap-3 p-3">
+          <span class="flex size-10 items-center justify-center chip"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#00f5ff" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <div class="min-w-0 flex-1"><p class="text-[11px] opacity-50">NEXT_UP</p><p class="truncate font-bold">Global Business Strategy</p><p class="text-xs opacity-60">09:15-10:30 · THU · CR_A1</p></div>
+        </div>
+        <div class="panel press flex items-center gap-3 p-3">
+          <span class="flex size-10 items-center justify-center" style="border:1px solid rgba(255,45,120,.4);color:#ff2d78"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#ff2d78" stroke-width="2"><path d="M4 11h16M6 11V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4M5 11l1 8h12l1-8"/></svg></span>
+          <div class="min-w-0 flex-1"><p class="text-[11px] opacity-50">DINNER//ON</p><p class="truncate font-bold">Paneer · Dal · Rice</p><p class="text-xs opacity-60">20:00-22:00</p></div>
+        </div>
+        <div class="panel press flex items-center gap-3 p-3">
+          <span class="flex size-10 items-center justify-center" style="border:1px solid rgba(0,255,150,.4);color:#00ff95"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#00ff95" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+          <div class="min-w-0 flex-1"><p class="text-[11px] opacity-50">RISK//ATTN</p><p class="truncate font-bold">Global Business Strategy</p><p class="text-xs opacity-60">90% · 4 bunks left</p></div>
+          <div class="text-lg font-bold" style="color:#00ff95;text-shadow:0 0 8px rgba(0,255,150,.6)">90%</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="mt-6 flex items-center justify-between">
+      <h3 class="text-lg font-bold glow-c">&gt; ON_DECK</h3>
+      <button class="chip press px-3 py-1 text-xs">FULL_PLAN</button>
+    </div>
+    <div class="panel mt-3 space-y-3 p-4">
+      <div class="flex items-center gap-3"><div class="w-12 text-right"><p class="text-sm font-bold">11:00</p><p class="text-[11px] opacity-50">12:15</p></div><span class="size-2.5" style="background:#ff2d78;box-shadow:0 0 8px #ff2d78"></span><p class="flex-1">Management of IT Products</p></div>
+      <div class="h-px" style="background:rgba(0,245,255,.2)"></div>
+      <div class="flex items-center gap-3"><div class="w-12 text-right"><p class="text-sm font-bold">14:00</p><p class="text-[11px] opacity-50">15:15</p></div><span class="size-2.5" style="background:#00f5ff;box-shadow:0 0 8px #00f5ff"></span><p class="flex-1">Strategic Business & Risk</p></div>
+    </div>
+  </div>
+
+  <nav class="fixed inset-x-0 bottom-0 z-[60] mx-auto max-w-[430px] px-4 pb-5">
+    <div class="panel flex items-center justify-around p-2">
+      <button class="press flex flex-col items-center gap-1 px-4 py-2" style="border:1px solid #00f5ff;color:#00f5ff;text-shadow:0 0 8px rgba(0,245,255,.6)"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#00f5ff" stroke-width="2"><path d="M12 3l2 5 5 .5-4 3.5 1.5 5-4.5-3-4.5 3 1.5-5-4-3.5 5-.5z"/></svg><span class="text-[11px] font-bold">NOW</span></button>
+      <button class="press flex flex-col items-center gap-1 px-3 py-2 opacity-60"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#d6f7ff" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span class="text-[11px]">PLAN</span></button>
+      <button class="press flex flex-col items-center gap-1 px-3 py-2 opacity-60"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#d6f7ff" stroke-width="2"><path d="M4 5h16v14H4z"/><path d="M8 5v14"/></svg><span class="text-[11px]">SUBJ</span></button>
+      <button class="press flex flex-col items-center gap-1 px-3 py-2 opacity-60"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="#d6f7ff" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span class="text-[11px]">ME</span></button>
+    </div>
+  </nav>
+
+  <div class="panel fixed left-1/2 top-3 z-[60] -translate-x-1/2 px-3 py-1 text-[11px] glow-c">STYLE 07 · CYBERPUNK</div>
+</body>
+</html>
