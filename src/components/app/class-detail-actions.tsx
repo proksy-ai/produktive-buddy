@@ -1,10 +1,21 @@
 "use client";
 
 import { Check, Loader2, Save, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { AttendanceMark } from "@/lib/attendance";
+import {
+  attendanceDraftForSession,
+  noteDraftForSession,
+  saveAttendanceDraft,
+  saveNoteDraft,
+} from "@/lib/local-first/store";
+import {
+  flushPendingLocalDrafts,
+  syncAttendanceDraft,
+  syncNoteDraft,
+} from "@/lib/local-first/sync";
 import { cn } from "@/lib/utils";
 
 export function ClassDetailActions({
@@ -21,25 +32,48 @@ export function ClassDetailActions({
   const [savingNote, setSavingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const [attendanceDraft, noteDraft] = await Promise.all([
+          attendanceDraftForSession(sessionId),
+          noteDraftForSession(sessionId),
+        ]);
+        if (!active) return;
+
+        if (attendanceDraft?.status === "PRESENT" || attendanceDraft?.status === "ABSENT") {
+          setMark(attendanceDraft.status);
+        }
+        if (attendanceDraft?.status === "CLEAR") {
+          setMark(undefined);
+        }
+        if (noteDraft) {
+          setNote(noteDraft.body);
+        }
+        await flushPendingLocalDrafts();
+      } catch {
+        // Local-first storage is best-effort.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [sessionId]);
+
   async function saveMark(next: AttendanceMark) {
     const value = mark === next ? "CLEAR" : next;
     setMark(value === "CLEAR" ? undefined : next);
-    await fetch("/api/attendance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, status: value }),
-    });
+    await saveAttendanceDraft(sessionId, value);
+    await syncAttendanceDraft(sessionId, value);
   }
 
   async function saveNote() {
     setSavingNote(true);
     setNoteSaved(false);
     try {
-      await fetch("/api/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, body: note }),
-      });
+      await saveNoteDraft(sessionId, note);
+      await syncNoteDraft(sessionId, note);
       setNoteSaved(true);
     } finally {
       setSavingNote(false);

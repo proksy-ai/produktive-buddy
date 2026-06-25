@@ -3,6 +3,12 @@ import type { AttendanceStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 
 export type AttendanceMutationStatus = "PRESENT" | "ABSENT" | "CLEAR";
+export class AttendanceOwnershipError extends Error {
+  constructor() {
+    super("Invalid class.");
+    this.name = "AttendanceOwnershipError";
+  }
+}
 
 export async function markStudentAttendance(
   userId: string,
@@ -18,7 +24,7 @@ export async function markStudentAttendance(
     select: { termId: true },
   });
   if (!user?.activeTermId || klass?.termId !== user.activeTermId) {
-    throw new Error("Invalid class.");
+    throw new AttendanceOwnershipError();
   }
 
   if (status === "CLEAR") {

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { replaceActiveTermEnrollments } from "@/features/courses/service";
 import { requireSession } from "@/lib/auth/session";
+import { replaceActiveTermEnrollments } from "@/modules/courses/application/enrollment-service";
 import { auditLog } from "@/server/audit/service";
 import { assertSameOrigin } from "@/server/security/csrf";
 

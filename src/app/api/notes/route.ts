@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { saveSessionNote } from "@/features/notes/service";
 import { requireSession } from "@/lib/auth/session";
+import {
+  NoteOwnershipError,
+  saveSessionNote,
+} from "@/modules/notes/application/notes-service";
 import { auditLog } from "@/server/audit/service";
 import { assertSameOrigin } from "@/server/security/csrf";
 
@@ -28,6 +31,9 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid note." }, { status: 400 });
+    }
+    if (err instanceof NoteOwnershipError) {
+      return NextResponse.json({ error: "Invalid class." }, { status: 400 });
     }
     console.error("[notes]", err);
     return NextResponse.json({ error: "Could not save note." }, { status: 500 });

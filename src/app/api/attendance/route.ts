@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { markStudentAttendance } from "@/features/attendance/service";
 import { requireSession } from "@/lib/auth/session";
+import {
+  AttendanceOwnershipError,
+  markStudentAttendance,
+} from "@/modules/attendance/application/attendance-service";
 import { auditLog } from "@/server/audit/service";
 import { assertSameOrigin } from "@/server/security/csrf";
 
@@ -33,6 +36,9 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+    if (err instanceof AttendanceOwnershipError) {
+      return NextResponse.json({ error: "Invalid class." }, { status: 400 });
     }
     console.error("[attendance]", err);
     return NextResponse.json({ error: "Could not save." }, { status: 500 });

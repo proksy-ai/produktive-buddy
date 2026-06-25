@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getRosterStats } from "@/features/roster/service";
 import { getAdminSession } from "@/lib/roles";
+import { getRosterStats } from "@/modules/roster/application/roster-service";
 
 export async function GET() {
   const session = await getAdminSession();

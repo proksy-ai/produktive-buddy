@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { VacationPlanner } from "@/components/app/vacation-planner";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { getUserSessions } from "@/lib/schedule";
+import { getUserSessions } from "@/modules/schedule/application/schedule-service";
 
 export const metadata: Metadata = { title: "Calendar" };
 

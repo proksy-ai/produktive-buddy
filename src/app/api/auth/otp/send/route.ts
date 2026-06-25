@@ -16,24 +16,32 @@ import {
   RateLimitError,
   requestIp,
 } from "@/server/security/rate-limit";
+import { assertSameOrigin } from "@/server/security/csrf";
+import { auditLog } from "@/server/audit/service";
+import { error as logError, info as logInfo, requestLogContext } from "@/server/observability/logger";
 
 const bodySchema = z.object({
   email: z.string().email(),
 });
 
 export async function POST(request: Request) {
+  const started = Date.now();
+  const logCtx = requestLogContext(request);
   try {
+    const csrf = assertSameOrigin(request);
+    if (csrf) return csrf;
+
     const json = await request.json();
     const { email } = bodySchema.parse(json);
     const normalized = normalizeInstituteEmail(email);
     const ip = requestIp(request);
 
-    checkRateLimit({
+    await checkRateLimit({
       key: `otp-send:ip:${ip}`,
       limit: 20,
       windowMs: 60 * 60 * 1000,
     });
-    checkRateLimit({
+    await checkRateLimit({
       key: `otp-send:email:${normalized}`,
       limit: 5,
       windowMs: 60 * 60 * 1000,
@@ -76,12 +84,36 @@ export async function POST(request: Request) {
       payload.devCode = code;
     }
 
+    await auditLog({
+      action: "auth.otp.send",
+      metadata: { batchLabel: batch.label },
+      request,
+    });
+    logInfo("auth.otp.send.success", {
+      ...logCtx,
+      status: 200,
+      durationMs: Date.now() - started,
+      errorCode: "AUTH_OTP_SEND_OK",
+    });
+
     return NextResponse.json(payload);
   } catch (err) {
     if (err instanceof OtpRateLimitError) {
+      logInfo("auth.otp.send.rate_limited", {
+        ...logCtx,
+        status: 429,
+        durationMs: Date.now() - started,
+        errorCode: "AUTH_OTP_SEND_RATE_LIMIT",
+      });
       return NextResponse.json({ error: err.message }, { status: 429 });
     }
     if (err instanceof RateLimitError) {
+      logInfo("auth.otp.send.rate_limited", {
+        ...logCtx,
+        status: 429,
+        durationMs: Date.now() - started,
+        errorCode: "AUTH_OTP_SEND_RATE_LIMIT",
+      });
       return NextResponse.json(
         { error: err.message },
         {
@@ -91,9 +123,20 @@ export async function POST(request: Request) {
       );
     }
     if (err instanceof z.ZodError) {
+      logInfo("auth.otp.send.invalid_email", {
+        ...logCtx,
+        status: 400,
+        durationMs: Date.now() - started,
+        errorCode: "AUTH_OTP_SEND_INVALID",
+      });
       return NextResponse.json({ error: "Invalid email." }, { status: 400 });
     }
-    console.error("[auth/otp/send]", err);
+    logError("auth.otp.send.failed", err, {
+      ...logCtx,
+      status: 500,
+      durationMs: Date.now() - started,
+      errorCode: "AUTH_OTP_SEND_FAILED",
+    });
     return NextResponse.json(
       { error: "Could not send verification code." },
       { status: 500 },

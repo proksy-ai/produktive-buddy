@@ -1,178 +1,222 @@
-import { randomBytes } from "node:crypto";
-
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canonicalAppUrl } from "@/lib/app-url";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import {
+  calendarLinks,
+  createCalendarShare,
+  listActiveCalendarShares,
+  revokeCalendarShare,
+  revokeCalendarToken,
+  rotateCalendarToken,
+  shareExpiresAt,
+  ensureCalendarToken,
+} from "@/modules/calendar/application/share-service";
 import { auditLog } from "@/server/audit/service";
+import {
+  error as logError,
+  requestLogContext,
+} from "@/server/observability/logger";
 import { assertSameOrigin } from "@/server/security/csrf";
 
-function token() {
-  return randomBytes(24).toString("base64url");
-}
-
-function calendarLinks(origin: string, tokenValue: string) {
-  const httpUrl = `${origin}/api/calendar/${tokenValue}.ics`;
-  const webcalUrl = httpUrl.replace(/^https?:/, "webcal:");
-  return {
-    httpUrl,
-    webcalUrl,
-    appleUrl: webcalUrl,
-    googleUrl: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(httpUrl)}`,
-  };
-}
-
 const shareSchema = z.object({
+  action: z.literal("createShare").optional(),
   scope: z.enum(["DAY", "WEEK", "ALL_TIME", "CUSTOM"]),
   startsOn: z.string().optional(),
   endsOn: z.string().optional(),
 });
 
-function dateAtUtcMidnight(ymd: string): Date {
-  return new Date(`${ymd}T00:00:00.000Z`);
-}
-
-function todayYmd(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function defaultRange(scope: z.infer<typeof shareSchema>["scope"]) {
-  const today = dateAtUtcMidnight(todayYmd());
-  if (scope === "DAY") {
-    return { startsOn: today, endsOn: today };
-  }
-  if (scope === "WEEK") {
-    const start = new Date(today);
-    const dow = (start.getUTCDay() + 6) % 7;
-    start.setUTCDate(start.getUTCDate() - dow);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6);
-    return { startsOn: start, endsOn: end };
-  }
-  return { startsOn: null, endsOn: null };
-}
+const actionSchema = z.object({
+  action: z.enum(["ensureToken", "rotateToken"]),
+});
 
 export async function GET(request: Request) {
+  const started = Date.now();
+  const logCtx = requestLogContext(request);
   try {
     const session = await requireSession();
+    const origin = canonicalAppUrl(request);
 
-    let user = await db.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: session.id },
       select: { calendarToken: true, calendarPreference: true },
     });
-
-    if (!user?.calendarToken) {
-      user = await db.user.update({
-        where: { id: session.id },
-        data: { calendarToken: token() },
-        select: { calendarToken: true, calendarPreference: true },
-      });
-    }
-
-    const origin = new URL(request.url).origin;
-    const calendarToken = user.calendarToken;
-    if (!calendarToken) throw new Error("Calendar token was not created.");
+    const shares = await listActiveCalendarShares(session.id, origin);
 
     return NextResponse.json({
-      ...calendarLinks(origin, calendarToken),
-      calendarPreference: user.calendarPreference,
+      links: user?.calendarToken ? calendarLinks(origin, user.calendarToken) : null,
+      shares,
+      calendarPreference: user?.calendarPreference,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    logError("calendar.link.get.failed", err, {
+      ...logCtx,
+      status: 500,
+      durationMs: Date.now() - started,
+      errorCode: "CALENDAR_LINK_GET_FAILED",
+    });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 }
 
 export async function POST(request: Request) {
+  const started = Date.now();
+  const logCtx = requestLogContext(request);
   try {
     const csrf = assertSameOrigin(request);
     if (csrf) return csrf;
     const session = await requireSession();
+    const origin = canonicalAppUrl(request);
 
     const text = await request.text();
     if (text.trim()) {
-      const input = shareSchema.parse(JSON.parse(text));
-      const fallback = defaultRange(input.scope);
-      const startsOn = input.startsOn
-        ? dateAtUtcMidnight(input.startsOn)
-        : fallback.startsOn;
-      const endsOn = input.endsOn ? dateAtUtcMidnight(input.endsOn) : fallback.endsOn;
-
-      const share = await db.calendarShare.create({
-        data: {
+      const payload = JSON.parse(text) as unknown;
+      if (typeof payload === "object" && payload && "scope" in payload) {
+        const input = shareSchema.parse(payload);
+        const share = await createCalendarShare({
           userId: session.id,
-          token: token(),
           scope: input.scope,
-          startsOn,
-          endsOn,
-        },
-        select: { token: true, scope: true, startsOn: true, endsOn: true },
-      });
+          startsOn: input.startsOn,
+          endsOn: input.endsOn,
+        });
 
+        const shareView = {
+          token: share.token,
+          scope: share.scope,
+          startsOn: share.startsOn,
+          endsOn: share.endsOn,
+          createdAt: share.createdAt,
+          expiresAt: shareExpiresAt(share),
+          links: calendarLinks(origin, share.token),
+        };
+
+        await auditLog({
+          actorId: session.id,
+          action: "calendar.share.create",
+          resource: share.scope,
+          request,
+        });
+
+        return NextResponse.json({
+          ok: true,
+          share: shareView,
+          shares: await listActiveCalendarShares(session.id, origin),
+        });
+      }
+
+      const action = actionSchema.parse(payload);
+      if (action.action === "ensureToken") {
+        const user = await ensureCalendarToken(session.id);
+        return NextResponse.json({
+          ok: true,
+          links: user.calendarToken ? calendarLinks(origin, user.calendarToken) : null,
+          calendarPreference: user.calendarPreference,
+          shares: await listActiveCalendarShares(session.id, origin),
+        });
+      }
+
+      const user = await rotateCalendarToken(session.id);
       await auditLog({
         actorId: session.id,
-        action: "calendar.share.create",
-        resource: share.scope,
+        action: "calendar.token.rotate",
         request,
       });
-
-      const origin = new URL(request.url).origin;
       return NextResponse.json({
         ok: true,
-        ...calendarLinks(origin, share.token),
-        scope: share.scope,
-        startsOn: share.startsOn,
-        endsOn: share.endsOn,
+        links: user.calendarToken ? calendarLinks(origin, user.calendarToken) : null,
+        calendarPreference: user.calendarPreference,
+        shares: await listActiveCalendarShares(session.id, origin),
       });
     }
 
-    const user = await db.user.update({
-      where: { id: session.id },
-      data: { calendarToken: token() },
-      select: { calendarToken: true, calendarPreference: true },
-    });
+    const user = await rotateCalendarToken(session.id);
     await auditLog({
       actorId: session.id,
       action: "calendar.token.rotate",
       request,
     });
-    const origin = new URL(request.url).origin;
-    const calendarToken = user.calendarToken;
-    if (!calendarToken) throw new Error("Calendar token was not rotated.");
     return NextResponse.json({
       ok: true,
-      ...calendarLinks(origin, calendarToken),
+      links: user.calendarToken ? calendarLinks(origin, user.calendarToken) : null,
       calendarPreference: user.calendarPreference,
+      shares: await listActiveCalendarShares(session.id, origin),
     });
   } catch (err) {
     if (err instanceof z.ZodError || err instanceof SyntaxError) {
       return NextResponse.json({ error: "Invalid share request." }, { status: 400 });
     }
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (err instanceof Error && err.message.includes("Share start date")) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    logError("calendar.link.post.failed", err, {
+      ...logCtx,
+      status: 500,
+      durationMs: Date.now() - started,
+      errorCode: "CALENDAR_LINK_POST_FAILED",
+    });
+    return NextResponse.json({ error: "Request failed." }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
+  const started = Date.now();
+  const logCtx = requestLogContext(request);
   try {
     const csrf = assertSameOrigin(request);
     if (csrf) return csrf;
     const session = await requireSession();
-    await db.user.update({
-      where: { id: session.id },
-      data: { calendarToken: null },
-    });
+    const origin = canonicalAppUrl(request);
+    const shareToken = new URL(request.url).searchParams.get("shareToken");
+
+    if (shareToken) {
+      const revoked = await revokeCalendarShare(session.id, shareToken);
+      if (!revoked) {
+        return NextResponse.json(
+          { error: "Share token not found." },
+          { status: 404 },
+        );
+      }
+      await auditLog({
+        actorId: session.id,
+        action: "calendar.share.revoke",
+        resource: shareToken,
+        request,
+      });
+      return NextResponse.json({
+        ok: true,
+        shares: await listActiveCalendarShares(session.id, origin),
+      });
+    }
+
+    await revokeCalendarToken(session.id);
     await auditLog({
       actorId: session.id,
       action: "calendar.token.revoke",
       request,
     });
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({
+      ok: true,
+      links: null,
+      shares: await listActiveCalendarShares(session.id, origin),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    logError("calendar.link.delete.failed", err, {
+      ...logCtx,
+      status: 500,
+      durationMs: Date.now() - started,
+      errorCode: "CALENDAR_LINK_DELETE_FAILED",
+    });
+    return NextResponse.json({ error: "Request failed." }, { status: 500 });
   }
 }

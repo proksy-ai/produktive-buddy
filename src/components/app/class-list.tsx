@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { SessionRow } from "@/components/app/session-row";
 import type { AttendanceMark } from "@/lib/attendance";
+import {
+  attendanceMarksFromLocal,
+  saveAttendanceDraft,
+} from "@/lib/local-first/store";
+import {
+  flushPendingLocalDrafts,
+  syncAttendanceDraft,
+} from "@/lib/local-first/sync";
 import type { ClassSession } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +32,23 @@ export function ClassList({
 }) {
   const [marks, setMarks] = useState<Record<string, AttendanceMark>>(initialMarks);
 
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const localMarks = await attendanceMarksFromLocal();
+        if (!active) return;
+        setMarks((prev) => ({ ...prev, ...localMarks }));
+        await flushPendingLocalDrafts();
+      } catch {
+        // Local-first storage is best-effort only.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   async function setMark(sessionId: string, next: AttendanceMark) {
     const current = marks[sessionId];
     const value = current === next ? "CLEAR" : next;
@@ -36,21 +61,8 @@ export function ClassList({
       return copy;
     });
 
-    try {
-      await fetch("/api/attendance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, status: value }),
-      });
-    } catch {
-      // Revert on failure.
-      setMarks((prev) => {
-        const copy = { ...prev };
-        if (current) copy[sessionId] = current;
-        else delete copy[sessionId];
-        return copy;
-      });
-    }
+    await saveAttendanceDraft(sessionId, value);
+    await syncAttendanceDraft(sessionId, value);
   }
 
   return (

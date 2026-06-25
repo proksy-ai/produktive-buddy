@@ -6,7 +6,7 @@ import { FriendsPanel } from "@/components/app/friends-panel";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/session";
-import { ensureFriendCode, getFriendSummaries } from "@/lib/friends";
+import { getFriendCode, getFriendSummaries } from "@/lib/friends";
 
 export const metadata: Metadata = { title: "Friends" };
 
@@ -15,7 +15,7 @@ export default async function FriendsPage() {
   if (!session) redirect("/login");
 
   const [friendCode, friends] = await Promise.all([
-    ensureFriendCode(session.id),
+    getFriendCode(session.id),
     getFriendSummaries(session.id),
   ]);
 

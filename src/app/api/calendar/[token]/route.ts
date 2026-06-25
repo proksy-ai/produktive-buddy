@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { buildCalendar } from "@/lib/ics";
-import { getActiveTermContext, getUserSessions } from "@/lib/schedule";
+import { isShareExpired } from "@/modules/calendar/application/share-service";
+import { getActiveTermContext, getUserSessions } from "@/modules/schedule/application/schedule-service";
 
 export async function GET(
   _request: Request,
@@ -18,10 +19,12 @@ export async function GET(
     ? null
     : await db.calendarShare.findUnique({
         where: { token },
-        include: { user: { select: { id: true, name: true } } },
+        include: {
+          user: { select: { id: true, name: true } },
+        },
       });
 
-  if (!user && (!share || share.revokedAt)) {
+  if (!user && (!share || share.revokedAt || isShareExpired(share))) {
     return new Response("Not found", { status: 404 });
   }
 

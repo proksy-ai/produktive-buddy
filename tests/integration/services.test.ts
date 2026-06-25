@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { markStudentAttendance } from "@/features/attendance/service";
-import { addFriendByCode, createGroup } from "@/features/social/service";
 import { db } from "@/lib/db";
+import { markStudentAttendance } from "@/modules/attendance/application/attendance-service";
+import { addFriendByCode, createGroup } from "@/modules/social/application/social-service";
 
 async function seededUser() {
   const user = await db.user.findFirst({

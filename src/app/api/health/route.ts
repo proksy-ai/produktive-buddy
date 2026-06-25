@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { error as logError, info as logInfo, requestLogContext } from "@/server/observability/logger";
 
-export async function GET() {
+export async function GET(request: Request) {
   const started = Date.now();
+  const logCtx = requestLogContext(request);
   try {
     const [userCount, latestSync, failedSyncSources] = await Promise.all([
       db.user.count(),
@@ -14,7 +16,7 @@ export async function GET() {
       db.sheetSource.count({ where: { lastSyncedAt: null } }),
     ]);
 
-    return NextResponse.json({
+    const payload = NextResponse.json({
       ok: true,
       service: "produktive-buddy",
       db: "ok",
@@ -23,8 +25,20 @@ export async function GET() {
       unsyncedSheetSources: failedSyncSources,
       latencyMs: Date.now() - started,
     });
+    logInfo("health.diagnostics.ok", {
+      ...logCtx,
+      status: 200,
+      durationMs: Date.now() - started,
+      errorCode: "HEALTH_DIAGNOSTIC_OK",
+    });
+    return payload;
   } catch (err) {
-    console.error("[health]", err);
+    logError("health.diagnostics.failed", err, {
+      ...logCtx,
+      status: 503,
+      durationMs: Date.now() - started,
+      errorCode: "HEALTH_DIAGNOSTIC_FAILED",
+    });
     return NextResponse.json(
       {
         ok: false,

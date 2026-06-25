@@ -27,6 +27,8 @@ npm run check
 - friends/groups free-busy calculations
 - ownership checks for session, course, group, note, and calendar mutations
 
+Detailed coverage expectations are tracked in `docs/testing-matrix.md`.
+
 ## CI Rule
 
 No PR should merge unless lint, typecheck, unit tests, integration tests, and build pass.

@@ -1,5 +1,12 @@
 import { db } from "@/lib/db";
 
+export class NoteOwnershipError extends Error {
+  constructor() {
+    super("Invalid class.");
+    this.name = "NoteOwnershipError";
+  }
+}
+
 export async function saveSessionNote(
   userId: string,
   sessionId: string,
@@ -14,7 +21,7 @@ export async function saveSessionNote(
     select: { termId: true },
   });
   if (!user?.activeTermId || klass?.termId !== user.activeTermId) {
-    throw new Error("Invalid class.");
+    throw new NoteOwnershipError();
   }
 
   const trimmed = body.trim();

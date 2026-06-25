@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { sendInvites } from "@/features/roster/service";
+import { canonicalAppUrl } from "@/lib/app-url";
 import { getAdminSession } from "@/lib/roles";
+import { sendInvites } from "@/modules/roster/application/roster-service";
 import { auditLog } from "@/server/audit/service";
 import { assertSameOrigin } from "@/server/security/csrf";
 
@@ -22,8 +23,7 @@ export async function POST(request: Request) {
     }
 
     const body = bodySchema.parse(await request.json().catch(() => ({})));
-    const appUrl =
-      process.env.APP_URL?.replace(/\/$/, "") ?? new URL(request.url).origin;
+    const appUrl = canonicalAppUrl(request);
 
     const result = await sendInvites(`${appUrl}/login`, {
       onlyUninvited: body.onlyUninvited,

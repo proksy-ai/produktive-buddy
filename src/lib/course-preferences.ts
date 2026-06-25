@@ -51,14 +51,9 @@ export async function ensureCourseColorPreferences(
     .sort();
   const assigned = assignCourseColorKeys(missing, used);
 
-  for (const [courseId, colorKey] of assigned) {
-    await db.userCoursePreference.upsert({
-      where: { userId_termId_courseId: { userId, termId, courseId } },
-      create: { userId, termId, courseId, colorKey },
-      update: { colorKey },
-    });
-    map.set(courseId, colorKey);
-  }
+  // Local-first policy: avoid write-on-read side effects. Persist only when
+  // explicit user actions introduce color customization workflows.
+  for (const [courseId, colorKey] of assigned) map.set(courseId, colorKey);
 
   return map;
 }

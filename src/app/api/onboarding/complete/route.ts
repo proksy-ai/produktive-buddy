@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { isElectiveTerm, termRequiresCohortSection } from "@/lib/onboarding";
 import {
   createSessionToken,
   requireSession,
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { resolveTermAvailability } from "@/lib/terms";
-import { voice } from "@/lib/voice";
+import {
+  completeOnboarding,
+  CompleteOnboardingError,
+} from "@/modules/onboarding/application/complete-onboarding";
 import { assertSameOrigin } from "@/server/security/csrf";
 
 const enrollmentSchema = z.object({
@@ -33,108 +34,15 @@ export async function POST(request: Request) {
     const session = await requireSession();
     const body = bodySchema.parse(await request.json());
 
-    const term = await db.term.findFirst({
-      where: { id: body.termId, batchId: session.batchId ?? undefined },
-      include: {
-        batch: { include: { program: true } },
-        _count: { select: { courses: true } },
-      },
-    });
-    if (!term) {
-      return NextResponse.json({ error: "Invalid term." }, { status: 400 });
-    }
-
-    const availability = resolveTermAvailability(
-      term.batch.label,
-      term.number,
-      term._count.courses > 0,
-    );
-    if (availability !== "live") {
-      return NextResponse.json(
-        { error: voice.onboarding.pickLiveTerm },
-        { status: 400 },
-      );
-    }
-
-    const elective = isElectiveTerm(term.number);
-    const needsSection = termRequiresCohortSection(
-      term.batch.program.kind,
-      term.number,
-    );
-
-    if (needsSection && !body.cohortSectionId) {
-      return NextResponse.json(
-        { error: "Pick your section (A–H)." },
-        { status: 400 },
-      );
-    }
-
-    if (elective && (!body.enrollments || body.enrollments.length === 0)) {
-      return NextResponse.json(
-        { error: "Select at least one course." },
-        { status: 400 },
-      );
-    }
-
-    await db.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: session.id },
-        data: {
-          name: body.name.trim(),
-          rollNumber: body.rollNumber?.trim() || null,
-          calendarPreference: body.calendarPreference ?? "LATER",
-          activeTermId: body.termId,
-          onboardingCompletedAt: new Date(),
-        },
-      });
-
-      if (!elective) {
-        await tx.userTermProfile.upsert({
-          where: {
-            userId_termId: { userId: session.id, termId: body.termId },
-          },
-          create: {
-            userId: session.id,
-            termId: body.termId,
-            cohortSectionId: body.cohortSectionId ?? null,
-          },
-          update: {
-            cohortSectionId: body.cohortSectionId ?? null,
-          },
-        });
-      }
-
-      if (elective && body.enrollments) {
-        await tx.enrollment.deleteMany({
-          where: { userId: session.id, termId: body.termId },
-        });
-
-        for (const en of body.enrollments) {
-          const course = await tx.course.findFirst({
-            where: { id: en.courseId, termId: body.termId },
-            include: { sections: true },
-          });
-          if (!course) continue;
-
-          let sectionId: string | null = null;
-          if (en.courseSectionCode) {
-            sectionId =
-              course.sections.find((s) => s.code === en.courseSectionCode)
-                ?.id ?? null;
-          } else if (course.sections.length === 1) {
-            sectionId = course.sections[0].id;
-          }
-
-          await tx.enrollment.create({
-            data: {
-              userId: session.id,
-              termId: body.termId,
-              courseId: course.id,
-              courseSectionId: sectionId,
-            },
-          });
-        }
-      }
+    await completeOnboarding({
+      sessionId: session.id,
+      sessionBatchId: session.batchId,
+      name: body.name,
+      rollNumber: body.rollNumber,
+      calendarPreference: body.calendarPreference,
+      termId: body.termId,
+      cohortSectionId: body.cohortSectionId,
+      enrollments: body.enrollments,
     });
 
     const user = await db.user.findUniqueOrThrow({
@@ -160,6 +68,9 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input." }, { status: 400 });
+    }
+    if (err instanceof CompleteOnboardingError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     console.error("[onboarding/complete]", err);
     return NextResponse.json({ error: "Could not save." }, { status: 500 });

@@ -11,19 +11,37 @@ export function FriendsPanel({
   friendCode,
   initialFriends,
 }: {
-  friendCode: string;
+  friendCode: string | null;
   initialFriends: FriendSummary[];
 }) {
+  const [myCode, setMyCode] = useState(friendCode);
   const [code, setCode] = useState("");
   const [friends, setFriends] = useState(initialFriends);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [generatingCode, setGeneratingCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function copyCode() {
-    await navigator.clipboard.writeText(friendCode);
+    if (!myCode) return;
+    await navigator.clipboard.writeText(myCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
+  }
+
+  async function generateCode() {
+    setGeneratingCode(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/friends/code", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not generate code.");
+      setMyCode(data.friendCode);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not generate code.");
+    } finally {
+      setGeneratingCode(false);
+    }
   }
 
   async function addFriend() {
@@ -61,15 +79,33 @@ export function FriendsPanel({
         <p className="text-sm font-semibold">Your friend code</p>
         <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-background/80 px-4 py-3">
           <span className="font-mono text-xl font-bold tracking-[0.18em]">
-            {friendCode}
+            {myCode ?? "Not generated"}
           </span>
-          <Button type="button" size="sm" variant="outline" onClick={() => void copyCode()}>
-            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-            {copied ? "Copied" : "Copy"}
-          </Button>
+          {myCode ? (
+            <Button type="button" size="sm" variant="outline" onClick={() => void copyCode()}>
+              {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void generateCode()}
+              disabled={generatingCode}
+            >
+              {generatingCode ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <UserPlus className="size-4" />
+              )}
+              Generate
+            </Button>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Share this with classmates so they can compare schedules with you.
+          Generate once, then share it with classmates so they can compare schedules
+          with you.
         </p>
       </section>
 

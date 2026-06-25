@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { addFriendByCode } from "@/features/social/service";
 import { requireSession } from "@/lib/auth/session";
+import { addFriendByCode } from "@/modules/social/application/social-service";
 import { auditLog } from "@/server/audit/service";
 import { assertSameOrigin } from "@/server/security/csrf";
 

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/app/page-header";
-import { getRosterStats } from "@/features/roster/service";
 import { requireRole } from "@/lib/roles";
+import { getRosterStats } from "@/modules/roster/application/roster-service";
 
 import { RosterAdmin } from "./roster-admin";
 

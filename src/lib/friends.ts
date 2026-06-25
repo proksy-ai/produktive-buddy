@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 
-import { compareSlotsForDate } from "@/features/social/free-busy";
 import { db } from "@/lib/db";
 import { campusNow, getUserSessions, type ClassSession } from "@/lib/schedule";
+import { compareSlotsForDate } from "@/modules/social/domain/free-busy";
 
 export interface FriendSummary {
   id: string;
@@ -18,13 +18,15 @@ function code(): string {
   return [...bytes].map((b) => alphabet[b % alphabet.length]).join("");
 }
 
-export async function ensureFriendCode(userId: string): Promise<string> {
+export async function getFriendCode(userId: string): Promise<string | null> {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { friendCode: true },
   });
-  if (user?.friendCode) return user.friendCode;
+  return user?.friendCode ?? null;
+}
 
+export async function createFriendCode(userId: string): Promise<string> {
   for (let i = 0; i < 5; i++) {
     const friendCode = code();
     try {

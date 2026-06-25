@@ -1,4 +1,4 @@
-# Deploy Kairo to Google Cloud (production)
+# Deploy Produktive Buddy to Google Cloud (production)
 
 Architecture: **Cloud Run** (the app) + **Cloud SQL for PostgreSQL** (database) +
 **Secret Manager** (secrets) + **Cloud Scheduler** (15-min sheet sync) + a custom
@@ -29,7 +29,7 @@ gcloud services enable \
 ## 1. Create the database (Cloud SQL Postgres)
 
 ```bash
-gcloud sql instances create kairo-db \
+gcloud sql instances create produktive-buddy-db \
   --database-version=POSTGRES_16 \
   --tier=db-perf-optimized-N-2 \
   --region=REGION \
@@ -37,11 +37,11 @@ gcloud sql instances create kairo-db \
 
 # Smallest/cheapest alternative tier: --edition=ENTERPRISE --tier=db-f1-micro
 
-gcloud sql databases create kairo --instance=kairo-db
-gcloud sql users create kairo --instance=kairo-db --password='DB_PASSWORD'
+gcloud sql databases create produktive_buddy --instance=produktive-buddy-db
+gcloud sql users create produktive_buddy --instance=produktive-buddy-db --password='DB_PASSWORD'
 
-# Note the connection name -> PROJECT_ID:REGION:kairo-db
-gcloud sql instances describe kairo-db --format='value(connectionName)'
+# Note the connection name -> PROJECT_ID:REGION:produktive-buddy-db
+gcloud sql instances describe produktive-buddy-db --format='value(connectionName)'
 ```
 
 ## 2. Create secrets
@@ -52,29 +52,34 @@ openssl rand -base64 48   # -> AUTH_SECRET
 openssl rand -base64 32   # -> CRON_SECRET
 npx web-push generate-vapid-keys   # -> VAPID public/private (optional, for push)
 
-CONN="PROJECT_ID:REGION:kairo-db"
+CONN="PROJECT_ID:REGION:produktive-buddy-db"
 
 printf '%s' 'PASTE_AUTH_SECRET'  | gcloud secrets create AUTH_SECRET  --data-file=-
 printf '%s' 'PASTE_CRON_SECRET'  | gcloud secrets create CRON_SECRET  --data-file=-
 printf '%s' 're_PASTE_RESEND_KEY' | gcloud secrets create RESEND_API_KEY --data-file=-
-printf '%s' 'Kairo <login@yourdomain.com>' | gcloud secrets create EMAIL_FROM --data-file=-
+printf '%s' 'Produktive Buddy <login@yourdomain.com>' | gcloud secrets create EMAIL_FROM --data-file=-
+printf '%s' 'PASTE_GOOGLE_CLIENT_ID' | gcloud secrets create GOOGLE_CLIENT_ID --data-file=-
+printf '%s' 'PASTE_GOOGLE_CLIENT_SECRET' | gcloud secrets create GOOGLE_CLIENT_SECRET --data-file=-
 printf '%s' 'PASTE_VAPID_PUBLIC'  | gcloud secrets create VAPID_PUBLIC_KEY --data-file=-
 printf '%s' 'PASTE_VAPID_PRIVATE' | gcloud secrets create VAPID_PRIVATE_KEY --data-file=-
 printf '%s' 'mailto:you@yourdomain.com' | gcloud secrets create VAPID_SUBJECT --data-file=-
 
 # DATABASE_URL uses the Cloud SQL unix socket (Cloud Run mounts it):
-printf '%s' "postgresql://kairo:DB_PASSWORD@/kairo?host=/cloudsql/${CONN}" \
+printf '%s' "postgresql://produktive_buddy:DB_PASSWORD@/produktive_buddy?host=/cloudsql/${CONN}" \
   | gcloud secrets create DATABASE_URL --data-file=-
+
+# Shared production rate limiting (Memorystore/Redis endpoint URL).
+printf '%s' 'redis://10.0.0.5:6379' | gcloud secrets create REDIS_URL --data-file=-
 ```
 
 ## 3. Create the schema + seed (one-time, via Cloud SQL Auth Proxy)
 
 ```bash
 # Download the proxy: https://cloud.google.com/sql/docs/postgres/sql-proxy
-./cloud-sql-proxy PROJECT_ID:REGION:kairo-db &   # listens on 127.0.0.1:5432
+./cloud-sql-proxy PROJECT_ID:REGION:produktive-buddy-db &   # listens on 127.0.0.1:5432
 
 # In the repo, point Prisma at the proxy and push the schema + seed
-export DIRECT_URL="postgresql://kairo:DB_PASSWORD@127.0.0.1:5432/kairo"
+export DIRECT_URL="postgresql://produktive_buddy:DB_PASSWORD@127.0.0.1:5432/produktive_buddy"
 export DATABASE_URL="$DIRECT_URL"
 npx prisma db push
 npm run db:seed
@@ -91,7 +96,7 @@ Grant the runtime service account access to secrets + Cloud SQL (first deploy on
 PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format='value(projectNumber)')
 SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-for s in AUTH_SECRET CRON_SECRET RESEND_API_KEY EMAIL_FROM VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT DATABASE_URL; do
+for s in AUTH_SECRET CRON_SECRET RESEND_API_KEY EMAIL_FROM GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT DATABASE_URL REDIS_URL; do
   gcloud secrets add-iam-policy-binding "$s" \
     --member="serviceAccount:${SA}" --role=roles/secretmanager.secretAccessor
 done
@@ -102,33 +107,40 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
 Deploy (builds from the Dockerfile automatically):
 
 ```bash
-gcloud run deploy kairo \
+gcloud run deploy produktive-buddy \
   --source . \
   --region REGION \
   --allow-unauthenticated \
-  --add-cloudsql-instances PROJECT_ID:REGION:kairo-db \
+  --add-cloudsql-instances PROJECT_ID:REGION:produktive-buddy-db \
   --min-instances 0 --max-instances 4 \
   --cpu 1 --memory 512Mi --concurrency 80 \
-  --set-secrets "AUTH_SECRET=AUTH_SECRET:latest,CRON_SECRET=CRON_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest,EMAIL_FROM=EMAIL_FROM:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,VAPID_SUBJECT=VAPID_SUBJECT:latest,DATABASE_URL=DATABASE_URL:latest"
+  --set-secrets "AUTH_SECRET=AUTH_SECRET:latest,CRON_SECRET=CRON_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest,EMAIL_FROM=EMAIL_FROM:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,VAPID_SUBJECT=VAPID_SUBJECT:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest"
 ```
 
-Health check: open `https://<run-url>/api/health` → should return `{ "ok": true }`.
+Health checks:
+
+- Public liveness: `https://<run-url>/healthz` (expected `{ "ok": true }`)
+- Authenticated diagnostics: `https://<run-url>/api/health`
+
+Google sign-in setup: create an OAuth **Web application** client in Google Cloud
+Console and add `https://<run-url>/api/auth/google/callback` plus your custom
+domain callback as authorized redirect URIs.
 
 > **Web Push (optional):** the public VAPID key must be baked in at build time.
 > When you want push, build with the key and deploy that image instead:
 > ```bash
 > gcloud builds submit --config cloudbuild.yaml \
->   --substitutions=_REGION=REGION,_REPO=kairo,_VAPID_PUBLIC=YOUR_PUBLIC_KEY
-> gcloud run deploy kairo --image REGION-docker.pkg.dev/PROJECT_ID/kairo/kairo:latest \
+>   --substitutions=_REGION=REGION,_REPO=produktive-buddy,_VAPID_PUBLIC=YOUR_PUBLIC_KEY
+> gcloud run deploy produktive-buddy --image REGION-docker.pkg.dev/PROJECT_ID/produktive-buddy/produktive-buddy:latest \
 >   --region REGION ...(same flags as above)
 > ```
 
 ## 5. Schedule the 15-minute sheet sync
 
 ```bash
-RUN_URL=$(gcloud run services describe kairo --region REGION --format='value(status.url)')
+RUN_URL=$(gcloud run services describe produktive-buddy --region REGION --format='value(status.url)')
 
-gcloud scheduler jobs create http kairo-sync \
+gcloud scheduler jobs create http produktive-buddy-sync \
   --location REGION \
   --schedule "*/15 * * * *" \
   --uri "${RUN_URL}/api/cron/sync-sheets" \
@@ -140,7 +152,7 @@ gcloud scheduler jobs create http kairo-sync \
 
 ```bash
 gcloud beta run domain-mappings create \
-  --service kairo --region REGION --domain app.yourdomain.com
+  --service produktive-buddy --region REGION --domain app.yourdomain.com
 # Prints DNS records (usually a CNAME to ghs.googlehosted.com, or A/AAAA).
 ```
 
@@ -153,7 +165,7 @@ managed TLS certificate (can take 15–60 min to go live).
 ## 7. Re-deploys
 
 ```bash
-gcloud run deploy kairo --source . --region REGION
+gcloud run deploy produktive-buddy --source . --region REGION
 ```
 
 Schema changes: re-run the proxy + `npx prisma db push` from step 3 before deploying.
@@ -166,14 +178,12 @@ Schema changes: re-run the proxy + `npx prisma db push` from step 3 before deplo
 - HTTPS enforced by Cloud Run + HSTS header in production.
 - Security headers + CSP, `X-Frame-Options: DENY`, `nosniff`, strict referrer.
 - Same-origin (CSRF) checks on mutating routes; httpOnly + Secure session cookie.
-- Email-domain-gated sign-in (`@iimk.ac.in`) + hashed, expiring OTP with attempt limits.
+- Google Workspace sign-in gated to verified `@iimk.ac.in` accounts, with OTP fallback.
 - Cron endpoint requires `Bearer CRON_SECRET`.
 - Non-root container user; least-privilege runtime service account.
 
 ## Known follow-ups (not blockers)
 
-- Rate limiting is in-memory per instance; move to Memorystore/Redis if you run
-  many instances or need strict global limits.
 - CSP keeps `script-src 'unsafe-inline'` (Next inlines hydration); tighten to a
   nonce/hash policy later if required by audit.
 - Schema is applied via `prisma db push`; switch to versioned migrations

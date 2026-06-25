@@ -38,12 +38,6 @@ const ITEMS: { label: string; description: string; icon: LucideIcon; href?: stri
     icon: Users,
     href: "/friends",
   },
-  {
-    label: "Sign out",
-    description: "Leave this device",
-    icon: LogOut,
-    href: "/api/auth/logout",
-  },
 ];
 
 export default async function MorePage() {
@@ -90,6 +84,23 @@ export default async function MorePage() {
           </Comp>
         );
         })}
+        <form method="post" action="/api/auth/logout">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted"
+          >
+            <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <LogOut className="size-[18px]" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">Sign out</span>
+              <span className="block text-xs text-muted-foreground">
+                Leave this device
+              </span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+          </button>
+        </form>
       </Card>
 
       <p className="px-1 text-center text-xs text-muted-foreground">

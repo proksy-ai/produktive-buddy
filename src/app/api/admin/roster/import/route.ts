@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { importRoster, parseRosterCsv } from "@/features/roster/service";
 import { getAdminSession } from "@/lib/roles";
+import {
+  importRoster,
+  parseRosterCsv,
+} from "@/modules/roster/application/roster-service";
 import { auditLog } from "@/server/audit/service";
 import { assertSameOrigin } from "@/server/security/csrf";
 
